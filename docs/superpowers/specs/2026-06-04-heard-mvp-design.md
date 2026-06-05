@@ -13,6 +13,10 @@ Heard is an autonomous agent that reads customer reviews across connected storef
 
 **v1 scope:** Shopify orders (context) + Judge.me reviews + Google Business Profile reviews. Webhook-driven for Judge.me, poll-driven for Google. Human-in-the-loop queue for anything the agent escalates.
 
+**Google integration modes:** The Google Business Profile API requires a formal access request from Google (approval timeline: weeks to months). The app supports two modes so the demo is not blocked:
+- **API mode** (connected): live OAuth, automated polling and reply posting.
+- **Manual-paste mode** (fallback): agent still classifies and drafts; UI queues the reply and prompts the user to copy-paste it into the actual Google review link. OhayoPop's 20 existing Google reviews are seeded directly into the DB for the demo.
+
 **Out of scope for v1:** TikTok Shop, eBay, Walmart, email/Slack briefing, analytics exports, multi-user/team accounts.
 
 ---
@@ -79,15 +83,18 @@ Five tables in Supabase. `reviews` holds raw ingest; `review_actions` holds all 
 
 ### `stores`
 ```
-id                     UUID PK
-user_id                UUID FK → auth.users
-shop_domain            TEXT        e.g. ohayopop.myshopify.com
-shopify_access_token   TEXT        encrypted
-judgeme_api_token      TEXT        encrypted
-judgeme_webhook_secret TEXT        encrypted (used to validate HMAC)
-google_oauth_tokens    JSONB       { access_token, refresh_token, expiry }
-google_location_name   TEXT        e.g. accounts/123/locations/456
-created_at             TIMESTAMPTZ
+id                          UUID PK
+user_id                     UUID FK → auth.users
+shop_domain                 TEXT        e.g. ohayopop.myshopify.com
+shopify_access_token        TEXT        encrypted
+judgeme_api_token           TEXT        encrypted
+judgeme_oauth_client_id     TEXT        encrypted  (from Judge.me OAuth app)
+judgeme_oauth_client_secret TEXT        encrypted  (from Judge.me OAuth app)
+judgeme_webhook_secret      TEXT        encrypted  (HMAC secret from OAuth app — NOT the api_token)
+google_oauth_tokens         JSONB       { access_token, refresh_token, expiry } — null if not connected
+google_location_name        TEXT        e.g. accounts/123/locations/456
+google_connection_mode      TEXT        api | manual_paste | null (not connected)
+created_at                  TIMESTAMPTZ
 ```
 
 ### `brand_voice_config`
@@ -113,7 +120,7 @@ body           TEXT
 product_title  TEXT
 product_handle TEXT
 order_id       TEXT        Shopify order ID (nullable)
-status         TEXT        pending | processing | auto_posted | needs_review | failed | approved | rejected
+status         TEXT        pending | processing | auto_posted | needs_review | reply_pending_manual | failed | approved | rejected
 received_at    TIMESTAMPTZ
 raw_payload    JSONB       full webhook/API payload for debugging
 created_at     TIMESTAMPTZ
@@ -191,17 +198,19 @@ GET /admin/api/2024-01/orders.json?email={email}
 
 **Role:** Receive new reviews via webhook; post public replies.
 
-**Auth:** `shop_domain` + private `api_token`. Found in `Judge.me Admin → Settings → Integrations`.
+**Auth:** Two credentials required:
+1. **Private API token** (`judgeme_api_token`) — for reading reviews via REST API. Found in `Judge.me Admin → Settings → Integrations → API`.
+2. **OAuth app** — required for webhook HMAC verification. User creates an app at `Judge.me Partner Portal → Apps`. The app yields `client_id`, `client_secret`, and a **webhook secret** (separate from the API token). The `judgeme_webhook_secret` in `stores` is this OAuth-app webhook secret, not the API token.
 
 **Webhook setup:**
-- User registers: `https://heard.apol.ai/api/webhooks/judgeme` in Judge.me admin
-- Event: `review/created`
-- Every request signed with `JUDGEME-HMAC-SHA256` header
-- Next.js validates signature before processing
+- User creates an OAuth app in Judge.me partner portal
+- Registers webhook URL `https://heard.apol.ai/api/webhooks/judgeme`, event: `review/created`
+- Every request signed with `JUDGEME-HMAC-SHA256` header (derived from OAuth app webhook secret)
+- Next.js validates signature using `stores.judgeme_webhook_secret`
 
 **Webhook payload includes:** review ID, rating, body, reviewer name + email, product title + handle, Shopify order ID (when available).
 
-**Reply endpoint:**
+**Reply endpoint** *(shape inferred from third-party integrations — verify against official docs before build):*
 ```
 POST https://judge.me/api/v1/reviews/{id}/reply
 Body: { shop_domain, api_token, reply: { body: "..." } }
@@ -212,14 +221,16 @@ Public replies appear immediately on the storefront widget.
 
 ### 3.3 Google Business Profile API
 
-**Role:** Poll for unanswered reviews; post public replies.
+**Role:** Poll for unanswered reviews; post public replies (when in API mode).
+
+**Access prerequisite:** The GBP API requires a formal access request submitted to Google before quota is granted. New GCP projects start with zero quota. Apply immediately at [Google Business Profile API access request form] — approval can take weeks and is not guaranteed before the June 11 demo. This is the reason the app supports two modes.
 
 **Auth:** OAuth 2.0. User clicks "Connect Google Business" in setup, authorizes via consent screen.
 - Scope: `https://www.googleapis.com/auth/business.manage`
 - Tokens stored in `stores.google_oauth_tokens`
 - Access tokens expire in 1 hour — agent refreshes automatically before every run
 
-**Endpoints:**
+**Endpoints (API mode only):**
 ```
 GET https://mybusinessreviews.googleapis.com/v1/{location_name}/reviews
   ?pageSize=50
@@ -230,6 +241,28 @@ Body: { comment: "..." }
 ```
 
 **Trigger:** Cloud Scheduler every 2 hours (no webhook support from Google).
+
+#### Two operating modes
+
+**API mode** (`google_connection_mode = 'api'`):
+- Full automated flow: sweep fetches reviews, agent drafts, auto-posts low-risk replies
+- Enabled when `google_oauth_tokens` is present and GBP API access is granted
+
+**Manual-paste mode** (`google_connection_mode = 'manual_paste'`):
+- Google reviews are seeded manually into the `reviews` table (for the demo: OhayoPop's ~20 existing Google reviews imported directly)
+- Agent still classifies and drafts replies normally — full ADK reasoning applies
+- `post_google_reply` tool is NOT called; decision is always `escalate` regardless of risk score
+- UI queues the draft and shows a **"Copy & Post to Google"** action:
+  - Copies draft reply to clipboard
+  - Opens the direct Google review URL in a new tab
+  - User pastes reply manually on Google
+  - Clicking "Mark as posted" in the UI sets `status = approved` and records `final_reply`
+- This mode shows the full agent capability (classification, brand voice, guardrails) without requiring live API access
+
+**Mode transitions:**
+- Default on setup: `null` (not connected)
+- User clicks "Connect Google Business" and completes OAuth: set to `manual_paste` until API access confirmed
+- User activates API mode manually in Settings after receiving Google API approval: set to `api`
 
 ### Trigger Summary
 
@@ -248,7 +281,7 @@ Body: { comment: "..." }
 The Cloud Run Job runs in one of two modes, passed as an environment variable at trigger time:
 
 - **`mode=single`** — triggered by Judge.me webhook. Receives `review_id`. Processes one review immediately.
-- **`mode=sweep`** — triggered by Cloud Scheduler. Fetches all unanswered Google reviews + any Judge.me reviews stuck in `pending`. Processes as a batch.
+- **`mode=sweep`** — triggered by Cloud Scheduler. In API mode: fetches all unanswered Google reviews via GBP API, upserts each into `reviews` table, then processes as a batch. Also catches any Judge.me reviews stuck in `pending`. In manual-paste mode: processes any seeded Google reviews still in `pending`.
 
 ### 4.2 Tools
 
@@ -267,17 +300,19 @@ get_order_context(order_id, store_id)
   → agent calls this only when it decides context is needed
 
 get_google_reviews(store_id)
-  → calls Google Business Profile API
-  → returns unanswered reviews (reviewReply == null)
+  → API mode only: calls Google Business Profile API
+  → upserts each unresponded review into `reviews` table (source = google_business)
+  → returns list of review_ids for processing
   → sweep mode only
 
 post_judgeme_reply(review_id, reply_text, store_id)
-  → calls Judge.me POST /reviews/{id}/reply
+  → calls Judge.me POST /reviews/{id}/reply  ⚠ endpoint shape unverified — confirm before build
   → posts public reply to storefront widget
 
 post_google_reply(review_name, reply_text, store_id)
-  → calls Google Business Profile PUT /{review_name}/reply
-  → posts public reply to Google listing
+  → API mode: calls Google Business Profile PUT /{review_name}/reply
+  → manual-paste mode: skips API call; sets review status to needs_review with reply_pending_manual flag
+  → in both modes: saves draft_reply via save_review_action
 
 save_review_action(review_id, action_data)
   → writes classification + draft + decision to Supabase
@@ -406,13 +441,16 @@ class ReviewAction(BaseModel):
 ### 5.1 Routes
 
 ```
-/login                          Supabase magic link auth
-/setup                          Onboarding wizard (runs once)
-/dashboard                      Analytics + review queue + activity feed
-/api/webhooks/judgeme           Webhook receiver
-/api/agent/trigger              Manual trigger (testing + demo)
-/api/reviews/[id]/approve       Post reply + update status
-/api/reviews/[id]/reject        Update status, no reply posted
+/login                              Supabase magic link auth
+/setup                              Onboarding wizard (runs once)
+/dashboard                          Analytics + review queue + activity feed
+/settings                           Store settings + integration status + API mode toggle
+/api/webhooks/judgeme               Webhook receiver
+/api/agent/trigger                  Manual trigger (testing + demo)
+/api/reviews/[id]/approve           Post reply to platform + update status (Judge.me and Google API mode)
+/api/reviews/[id]/mark-posted       Mark reply as manually posted (Google manual-paste mode only)
+/api/reviews/[id]/reject            Update status, no reply posted
+/api/auth/google/callback           Google OAuth callback
 ```
 
 ### 5.2 Setup Flow — 4 Steps
@@ -425,14 +463,19 @@ class ReviewAction(BaseModel):
 **Step 2 — Connect Judge.me**
 - Shop domain pre-filled
 - Input: Judge.me Private API Token
-- "Test connection" calls `GET /api/v1/reviews`
-- After save: displays webhook URL to register in Judge.me admin
-- Inline instructions for webhook registration
+- "Test connection" calls `GET /api/v1/reviews` to validate
+- After save: inline instructions to create a Judge.me OAuth app:
+  1. Go to `Judge.me Partner Portal → Apps → Create App`
+  2. Copy Client ID, Client Secret, and Webhook Secret into Heard settings
+  3. In the OAuth app, register webhook URL `https://heard.apol.ai/api/webhooks/judgeme`, event: `review/created`
+- Saves all four Judge.me credentials (`api_token`, `oauth_client_id`, `oauth_client_secret`, `webhook_secret`)
 
 **Step 3 — Connect Google Business**
 - "Connect Google Business" button → Google OAuth consent flow
 - On callback: fetches location(s), auto-selects if one, shows picker if multiple
 - Saves `google_location_name` + OAuth tokens
+- Sets `google_connection_mode = 'manual_paste'` (default; user upgrades to `api` mode in Settings after Google approves API access)
+- Shows inline notice: *"Google Business is connected in manual-paste mode. The agent will draft replies and queue them for you to post. To enable automatic posting, request Google Business Profile API access and activate API mode in Settings."*
 
 **Step 4 — Train Brand Voice**
 - Textarea: paste 5–10 past review replies (one per line)
@@ -465,9 +508,22 @@ Each card shows:
 - Order context snippet (when available): `Order #4821 · Unfulfilled · Last tracked Nov 28`
 - Editable draft reply textarea
 - Expandable agent reasoning
-- Actions: [Approve] [Edit & Approve] [Skip]
+- Actions (vary by platform + mode):
 
-Approve posts the draft as-is. Edit & Approve lets the user modify first. Both call `/api/reviews/[id]/approve` which posts to the correct platform and updates status.
+**Judge.me reviews:** [Approve] [Edit & Approve] [Skip]
+- Approve posts draft via `/api/reviews/[id]/approve` → calls Judge.me reply API
+- Edit & Approve lets user modify draft first, then posts
+
+**Google reviews — API mode:** same as Judge.me [Approve] [Edit & Approve] [Skip]
+- Posts via `/api/reviews/[id]/approve` → calls Google Business Profile reply API
+
+**Google reviews — manual-paste mode:** [Copy & Post to Google] [Skip]
+- "Copy & Post to Google" button:
+  1. Copies approved reply text to clipboard
+  2. Opens the Google review URL in a new tab (direct link to the review on Google Maps)
+  3. Shows inline confirmation: *"Did you post it? [Mark as Posted]"*
+- "Mark as Posted" calls `/api/reviews/[id]/mark-posted` → sets `status = approved`, saves `final_reply`
+- Platform badge shows "Google (manual)" to distinguish from API mode
 
 **Activity Feed** — right sidebar, Supabase Realtime:
 ```
@@ -501,11 +557,12 @@ Heard escalated Kenji T. to your queue          3h ago   ★★☆☆☆
 
 Full lifecycle:
 ```
-pending → processing → auto_posted
-                    ↘ needs_review  (escalated or error)
-                    ↘ failed        (agent crashed, couldn't even save)
+pending → processing → auto_posted                    (Judge.me or Google API mode, low-risk)
+                    ↘ needs_review                    (escalated by agent — human must act)
+                    ↘ reply_pending_manual            (Google manual-paste mode — agent drafted, user copies and posts)
+                    ↘ failed                          (agent crashed, couldn't even save)
                               ↓
-                        approved | rejected  (human acted)
+                        approved | rejected           (human acted: approved or skipped)
 ```
 
 `processing` is set at the very start of the Cloud Run Job. Prevents double-processing in sweep mode. Reviews stuck in `processing` for > 30 minutes are reset to `pending` by the nightly sweep.
@@ -581,7 +638,10 @@ Prevents double-posting if agent runs twice against the same review.
 
 ## Open Questions / Risks
 
-- Confirm Judge.me webhook registration works on OhayoPop's current plan
-- Verify Google Business Profile API quota (300 QPD per location) is sufficient for demo volume
+- **[APPLY TODAY] Google Business Profile API access** — formal access request required from Google. Approval timeline: weeks to months, high denial/delay rate. Submit immediately. Demo fallback is manual-paste mode with seeded OhayoPop reviews. If access arrives before June 11, toggle to API mode.
+- **Judge.me reply endpoint shape** — `POST /api/v1/reviews/{id}/reply` is inferred from third-party integrations. Verify against official Judge.me API docs or support before building the reply tool.
+- **Judge.me OAuth app on OhayoPop plan** — confirm partner portal access and webhook registration are available on OhayoPop's current Judge.me plan.
+- **Google review URLs for manual-paste** — the direct link to a specific Google review (for the "Copy & Post" flow) needs to be derivable from the `review_name` field returned by the GBP API. Confirm URL format before building.
 - Lock brand voice samples from OhayoPop's existing Judge.me replies before building voice training step
+- Seed OhayoPop's ~20 Google reviews into the DB as part of demo setup (script needed)
 - Verify "Heard" name trademark before any public launch
