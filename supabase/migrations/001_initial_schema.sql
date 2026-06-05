@@ -7,7 +7,7 @@ create extension if not exists "pgcrypto";
 create table stores (
   id                          uuid primary key default gen_random_uuid(),
   user_id                     uuid not null references auth.users on delete cascade,
-  shop_domain                 text not null,
+  shopify_domain              text not null,
   shopify_access_token        text,
   judgeme_api_token           text,
   judgeme_oauth_client_id     text,
@@ -65,6 +65,7 @@ create table reviews (
   received_at    timestamptz not null default now(),
   raw_payload    jsonb,
   created_at     timestamptz not null default now(),
+  updated_at     timestamptz not null default now(),
 
   unique (external_id, store_id)
 );
@@ -139,6 +140,24 @@ create policy "Users access own agent runs" on agent_runs
 
 -- ============================================================
 -- Service-role bypass policies (for Cloud Run Job)
--- Agent reads/writes via service role key — bypasses RLS
+-- Agent reads/writes via service role key — bypasses RLS by default in Supabase
 -- ============================================================
--- No additional grants needed: service role bypasses RLS by default in Supabase
+
+-- Atomic review claim: returns the review id if it was successfully claimed,
+-- or null if it was already claimed/not pending. Prevents double-processing
+-- when a webhook trigger and sweep run simultaneously.
+create or replace function claim_review(p_review_id uuid)
+returns uuid
+language plpgsql
+security definer
+as $$
+declare
+  claimed_id uuid;
+begin
+  update reviews
+  set status = 'processing', updated_at = now()
+  where id = p_review_id and status = 'pending'
+  returning id into claimed_id;
+  return claimed_id;
+end;
+$$;

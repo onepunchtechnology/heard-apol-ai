@@ -7,7 +7,7 @@ export type Database = {
         Row: {
           id: string
           user_id: string
-          shop_domain: string
+          shopify_domain: string
           shopify_access_token: string | null
           judgeme_api_token: string | null
           judgeme_oauth_client_id: string | null
@@ -21,7 +21,7 @@ export type Database = {
         Insert: {
           id?: string
           user_id: string
-          shop_domain: string
+          shopify_domain: string
           shopify_access_token?: string | null
           judgeme_api_token?: string | null
           judgeme_oauth_client_id?: string | null
@@ -35,7 +35,7 @@ export type Database = {
         Update: {
           id?: string
           user_id?: string
-          shop_domain?: string
+          shopify_domain?: string
           shopify_access_token?: string | null
           judgeme_api_token?: string | null
           judgeme_oauth_client_id?: string | null
@@ -92,6 +92,7 @@ export type Database = {
           received_at: string
           raw_payload: Json | null
           created_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
@@ -109,6 +110,7 @@ export type Database = {
           received_at?: string
           raw_payload?: Json | null
           created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
@@ -126,6 +128,7 @@ export type Database = {
           received_at?: string
           raw_payload?: Json | null
           created_at?: string
+          updated_at?: string
         }
         Relationships: []
       }
