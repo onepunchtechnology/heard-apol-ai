@@ -64,7 +64,7 @@ class Orchestrator:
         # --- 2. Load review + store credentials ---
         row = (
             self._db.table("reviews")
-            .select("*, stores(shopify_domain, shopify_access_token, judgeme_api_token)")
+            .select("*, stores(store_domain, platform_access_token, judgeme_api_token)")
             .eq("id", review_id)
             .single()
             .execute()
@@ -105,11 +105,11 @@ class Orchestrator:
 
         # --- 5. Fetch order context if the classifier says it's needed ---
         order_context: dict | None = None
-        if needs_order_ctx and store.get("shopify_domain") and store.get("shopify_access_token"):
+        if needs_order_ctx and store.get("store_domain") and store.get("platform_access_token"):
             try:
                 order_context = await fetch_order_context(
-                    shop_domain=store["shopify_domain"],
-                    access_token=store["shopify_access_token"],
+                    shop_domain=store["store_domain"],
+                    access_token=store["platform_access_token"],
                     reviewer_name=row.get("reviewer_name", ""),
                 )
                 trace.append(_step("fetch_order_context", "complete", found=order_context is not None))
@@ -172,7 +172,7 @@ class Orchestrator:
                         f"{JUDGEME_API_BASE}/reviews/{row['external_id']}/reply",
                         json={
                             "api_token": store["judgeme_api_token"],
-                            "shop_domain": store.get("shopify_domain", ""),
+                            "shop_domain": store.get("store_domain", ""),
                             "body": draft_reply,
                         },
                     )

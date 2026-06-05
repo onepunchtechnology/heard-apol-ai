@@ -6,7 +6,9 @@
 -- Demo store (OhayoPop)
 -- ============================================================
 insert into stores (
-  id, user_id, shopify_domain, shopify_access_token,
+  id, user_id,
+  store_domain, store_name, platform,
+  platform_access_token,
   judgeme_api_token, judgeme_webhook_secret,
   google_connection_mode, google_location_name,
   created_at
@@ -14,6 +16,8 @@ insert into stores (
   'aaaaaaaa-0001-0000-0000-000000000000',
   '00000000-0000-0000-0000-000000000001', -- replace with real user ID
   'ohayopop.myshopify.com',
+  'OhayoPop',
+  'shopify',
   'demo_shopify_token',
   'demo_judgeme_token',
   'demo_webhook_secret',

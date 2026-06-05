@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
   const { data: storeData } = await supabase
     .from('stores')
     .select('id, judgeme_webhook_secret')
-    .eq('shopify_domain', shopDomain)
+    .eq('store_domain', shopDomain)
     .maybeSingle()
 
   if (!storeData) {

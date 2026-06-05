@@ -7,27 +7,41 @@ export async function POST(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { shopify_domain, shopify_access_token } = await request.json()
-  if (!shopify_domain || !shopify_access_token) {
-    return NextResponse.json({ error: 'shopify_domain and shopify_access_token required' }, { status: 400 })
+  const { store_domain, access_token } = await request.json()
+  if (!store_domain || !access_token) {
+    return NextResponse.json({ error: 'store_domain and access_token required' }, { status: 400 })
   }
 
-  const domain = shopify_domain.replace(/^https?:\/\//, '').replace(/\/$/, '')
+  const domain = store_domain.replace(/^https?:\/\//, '').replace(/\/$/, '')
 
   const res = await fetch(`https://${domain}/admin/api/2026-01/shop.json`, {
-    headers: { 'X-Shopify-Access-Token': shopify_access_token },
+    headers: { 'X-Shopify-Access-Token': access_token },
   })
   if (!res.ok) {
     return NextResponse.json({ error: 'Invalid Shopify credentials' }, { status: 422 })
   }
 
+  const shopData = await res.json()
+  const storeName = shopData?.shop?.name ?? null
+
   const admin = createAdminClient()
   const { data: existing } = await admin.from('stores').select('id').eq('user_id', user.id).maybeSingle()
 
   if (existing) {
-    await admin.from('stores').update({ shopify_domain: domain, shopify_access_token }).eq('id', existing.id)
+    await admin.from('stores').update({
+      store_domain: domain,
+      store_name: storeName,
+      platform: 'shopify',
+      platform_access_token: access_token,
+    }).eq('id', existing.id)
   } else {
-    await admin.from('stores').insert({ user_id: user.id, shopify_domain: domain, shopify_access_token })
+    await admin.from('stores').insert({
+      user_id: user.id,
+      store_domain: domain,
+      store_name: storeName,
+      platform: 'shopify',
+      platform_access_token: access_token,
+    })
   }
 
   return NextResponse.json({ ok: true })

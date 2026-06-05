@@ -7,8 +7,16 @@ create extension if not exists "pgcrypto";
 create table stores (
   id                          uuid primary key default gen_random_uuid(),
   user_id                     uuid not null references auth.users on delete cascade,
-  shopify_domain              text not null,
-  shopify_access_token        text,
+
+  -- E-commerce platform (used for order context fetching only)
+  store_domain                text not null,
+  store_name                  text,
+  platform                    text check (platform in ('shopify', 'woocommerce', 'bigcommerce', 'custom')),
+  platform_access_token       text,   -- Shopify: admin API token; WooCommerce: consumer_key; BigCommerce: access_token
+  platform_api_secret         text,   -- WooCommerce: consumer_secret; BigCommerce: client_secret
+  platform_config             jsonb,  -- escape hatch for platform-specific extras (e.g. BigCommerce store_hash)
+
+  -- Review platforms (already platform-agnostic by name)
   judgeme_api_token           text,
   judgeme_oauth_client_id     text,
   judgeme_oauth_client_secret text,
@@ -16,6 +24,7 @@ create table stores (
   google_oauth_tokens         jsonb,
   google_location_name        text,
   google_connection_mode      text check (google_connection_mode in ('api', 'manual_paste')),
+
   created_at                  timestamptz not null default now()
 );
 

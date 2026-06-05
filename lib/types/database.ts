@@ -7,8 +7,12 @@ export type Database = {
         Row: {
           id: string
           user_id: string
-          shopify_domain: string
-          shopify_access_token: string | null
+          store_domain: string
+          store_name: string | null
+          platform: 'shopify' | 'woocommerce' | 'bigcommerce' | 'custom' | null
+          platform_access_token: string | null
+          platform_api_secret: string | null
+          platform_config: Json | null
           judgeme_api_token: string | null
           judgeme_oauth_client_id: string | null
           judgeme_oauth_client_secret: string | null
@@ -21,8 +25,12 @@ export type Database = {
         Insert: {
           id?: string
           user_id: string
-          shopify_domain: string
-          shopify_access_token?: string | null
+          store_domain: string
+          store_name?: string | null
+          platform?: 'shopify' | 'woocommerce' | 'bigcommerce' | 'custom' | null
+          platform_access_token?: string | null
+          platform_api_secret?: string | null
+          platform_config?: Json | null
           judgeme_api_token?: string | null
           judgeme_oauth_client_id?: string | null
           judgeme_oauth_client_secret?: string | null
@@ -35,8 +43,12 @@ export type Database = {
         Update: {
           id?: string
           user_id?: string
-          shopify_domain?: string
-          shopify_access_token?: string | null
+          store_domain?: string
+          store_name?: string | null
+          platform?: 'shopify' | 'woocommerce' | 'bigcommerce' | 'custom' | null
+          platform_access_token?: string | null
+          platform_api_secret?: string | null
+          platform_config?: Json | null
           judgeme_api_token?: string | null
           judgeme_oauth_client_id?: string | null
           judgeme_oauth_client_secret?: string | null

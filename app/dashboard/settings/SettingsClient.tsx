@@ -4,7 +4,7 @@ import { useState } from 'react'
 
 interface Store {
   id: string
-  shopify_domain: string
+  store_domain: string
   google_connection_mode: string | null
   google_location_name: string | null
 }
@@ -81,12 +81,12 @@ export default function SettingsClient({
             <div className="flex flex-col gap-3">
               <ConnectionRow
                 label="Shopify"
-                value={store.shopify_domain}
+                value={store.store_domain}
                 status="connected"
               />
               <ConnectionRow
                 label="Judge.me"
-                value={store.shopify_domain}
+                value={store.store_domain}
                 status="connected"
               />
               <ConnectionRow
