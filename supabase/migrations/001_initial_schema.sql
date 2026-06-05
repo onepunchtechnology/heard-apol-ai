@@ -28,7 +28,7 @@ create policy "Users own their stores" on stores
 -- ============================================================
 create table brand_voice_config (
   id               uuid primary key default gen_random_uuid(),
-  store_id         uuid not null references stores on delete cascade,
+  store_id         uuid not null unique references stores on delete cascade,
   sample_replies   text[] not null default '{}',
   rules            text[] not null default '{}',
   tone_description text,
