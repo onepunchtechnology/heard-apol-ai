@@ -162,11 +162,14 @@ export default function ReviewsClient({ reviews }: { reviews: Review[] }) {
                   <StarRating rating={review.rating} />
                   <PlatformBadge source={review.source} />
                   {review.reviewer_name && (
-                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text)' }}>
+                    <span
+                      className="truncate"
+                      style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text)', minWidth: 0, maxWidth: '100px' }}
+                    >
                       {review.reviewer_name}
                     </span>
                   )}
-                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', marginLeft: 'auto' }}>
+                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', marginLeft: 'auto', flexShrink: 0 }}>
                     {formatDistanceToNow(review.received_at)}
                   </span>
                 </div>
@@ -194,7 +197,7 @@ export default function ReviewsClient({ reviews }: { reviews: Review[] }) {
 
       <div className="flex-1 overflow-y-auto p-6">
         {selected ? (
-          <ReviewDetail review={selected} />
+          <ReviewDetail key={selected.id} review={selected} />
         ) : (
           <div className="flex items-center justify-center h-full">
             <p style={{ color: 'var(--color-muted)', fontSize: 'var(--text-sm)' }}>
@@ -272,17 +275,19 @@ function ReviewDetail({ review }: { review: Review }) {
           }}
         >
           <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text)', fontWeight: 500 }}>
-            Order {action.order_context.order_name}
+            {action.order_context.order_name ? `Order ${action.order_context.order_name}` : 'Order'}
             {' · '}
             {action.order_context.fulfillment_status === 'fulfilled'
               ? 'Delivered'
               : action.order_context.fulfillment_status ?? 'Unfulfilled'}
-            {' · '}
-            {new Date(action.order_context.created_at).toLocaleDateString('en-US', {
-              month: 'short', day: 'numeric', year: 'numeric',
-            })}
+            {(() => {
+              const d = action.order_context.created_at ? new Date(action.order_context.created_at) : null
+              return d && !isNaN(d.getTime())
+                ? ` · ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+                : null
+            })()}
           </p>
-          {action.order_context.line_items.length > 0 && (
+          {Array.isArray(action.order_context.line_items) && action.order_context.line_items.length > 0 && (
             <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', marginTop: '4px' }}>
               {action.order_context.line_items.map((i) => `${i.title} ×${i.quantity}`).join(', ')}
             </p>
