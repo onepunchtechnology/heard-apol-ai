@@ -3,6 +3,14 @@
 import { useState } from 'react'
 import { formatDistanceToNow } from '@/lib/utils'
 
+interface OrderContext {
+  order_name: string
+  financial_status: string
+  fulfillment_status: string | null
+  line_items: Array<{ title: string; quantity: number }>
+  created_at: string
+}
+
 interface ReviewAction {
   id: string
   risk_score: number
@@ -11,7 +19,7 @@ interface ReviewAction {
   agent_reasoning: string
   draft_reply: string
   final_reply: string | null
-  order_context: Record<string, unknown> | null
+  order_context: OrderContext | null
   agent_trace: AgentTraceStep[]
   confidence?: number
 }
@@ -27,6 +35,7 @@ interface Review {
   id: string
   reviewer_name: string
   rating: number
+  title: string | null
   body: string
   source: string
   received_at: string
@@ -152,6 +161,11 @@ export default function ReviewsClient({ reviews }: { reviews: Review[] }) {
                 <div className="flex items-center gap-2">
                   <StarRating rating={review.rating} />
                   <PlatformBadge source={review.source} />
+                  {review.reviewer_name && (
+                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text)' }}>
+                      {review.reviewer_name}
+                    </span>
+                  )}
                   <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', marginLeft: 'auto' }}>
                     {formatDistanceToNow(review.received_at)}
                   </span>
@@ -218,9 +232,20 @@ function ReviewDetail({ review }: { review: Review }) {
 
   const isManualPaste = review.status === 'reply_pending_manual'
   const isGoogleManual = review.source === 'google_business' && isManualPaste
+  const wordCount = draft.trim() ? draft.trim().split(/\s+/).length : 0
 
   return (
     <div className="max-w-2xl">
+      <div className="mb-3">
+        <p style={{ fontSize: 'var(--text-base)', fontWeight: 500, color: 'var(--color-text)' }}>
+          {review.reviewer_name}
+        </p>
+        {(review.title || review.product_title) && (
+          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-muted)', marginTop: '2px' }}>
+            {review.title ?? review.product_title}
+          </p>
+        )}
+      </div>
       <div className="flex items-center gap-3 mb-4">
         <StarRating rating={review.rating} />
         <PlatformBadge source={review.source} />
@@ -239,16 +264,29 @@ function ReviewDetail({ review }: { review: Review }) {
 
       {action?.order_context && (
         <div
-          className="rounded-md px-4 py-3 mb-4 flex items-center gap-2"
+          className="rounded-md px-4 py-3 mb-4"
           style={{
             backgroundColor: 'var(--color-surface)',
             border: '1px solid var(--color-border)',
             borderRadius: 'var(--radius-md)',
           }}
         >
-          <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-muted)' }}>
-            {JSON.stringify(action.order_context).slice(0, 80)}
-          </span>
+          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text)', fontWeight: 500 }}>
+            Order {action.order_context.order_name}
+            {' · '}
+            {action.order_context.fulfillment_status === 'fulfilled'
+              ? 'Delivered'
+              : action.order_context.fulfillment_status ?? 'Unfulfilled'}
+            {' · '}
+            {new Date(action.order_context.created_at).toLocaleDateString('en-US', {
+              month: 'short', day: 'numeric', year: 'numeric',
+            })}
+          </p>
+          {action.order_context.line_items.length > 0 && (
+            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', marginTop: '4px' }}>
+              {action.order_context.line_items.map((i) => `${i.title} ×${i.quantity}`).join(', ')}
+            </p>
+          )}
         </div>
       )}
 
@@ -257,6 +295,9 @@ function ReviewDetail({ review }: { review: Review }) {
           <div className="flex items-center gap-2 mb-2">
             <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-muted)' }}>
               Draft reply
+            </span>
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', opacity: 0.7 }}>
+              {wordCount} words
             </span>
             {action.confidence !== undefined && (
               <span

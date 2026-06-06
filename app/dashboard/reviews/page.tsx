@@ -7,7 +7,7 @@ export default async function ReviewsPage() {
   const { data: reviews } = await supabase
     .from('reviews')
     .select(`
-      id, reviewer_name, rating, body, source, received_at, status, product_title,
+      id, reviewer_name, rating, title, body, source, received_at, status, product_title,
       review_actions (
         id, risk_score, risk_flags, sentiment_label, agent_reasoning, draft_reply,
         final_reply, order_context, agent_trace, confidence
