@@ -3,6 +3,14 @@
 import { useState } from 'react'
 import { formatDistanceToNow } from '@/lib/utils'
 
+interface OrderContext {
+  order_name: string
+  financial_status: string
+  fulfillment_status: string | null
+  line_items: Array<{ title: string; quantity: number }>
+  created_at: string
+}
+
 interface ReviewAction {
   id: string
   risk_score: number
@@ -11,7 +19,7 @@ interface ReviewAction {
   agent_reasoning: string
   draft_reply: string
   final_reply: string | null
-  order_context: Record<string, unknown> | null
+  order_context: OrderContext | null
   agent_trace: AgentTraceStep[]
   confidence?: number
 }
@@ -27,6 +35,7 @@ interface Review {
   id: string
   reviewer_name: string
   rating: number
+  title: string | null
   body: string
   source: string
   received_at: string
@@ -152,7 +161,15 @@ export default function ReviewsClient({ reviews }: { reviews: Review[] }) {
                 <div className="flex items-center gap-2">
                   <StarRating rating={review.rating} />
                   <PlatformBadge source={review.source} />
-                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', marginLeft: 'auto' }}>
+                  {review.reviewer_name && (
+                    <span
+                      className="truncate"
+                      style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text)', minWidth: 0, maxWidth: '100px' }}
+                    >
+                      {review.reviewer_name}
+                    </span>
+                  )}
+                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', marginLeft: 'auto', flexShrink: 0 }}>
                     {formatDistanceToNow(review.received_at)}
                   </span>
                 </div>
@@ -180,7 +197,7 @@ export default function ReviewsClient({ reviews }: { reviews: Review[] }) {
 
       <div className="flex-1 overflow-y-auto p-6">
         {selected ? (
-          <ReviewDetail review={selected} />
+          <ReviewDetail key={selected.id} review={selected} />
         ) : (
           <div className="flex items-center justify-center h-full">
             <p style={{ color: 'var(--color-muted)', fontSize: 'var(--text-sm)' }}>
@@ -218,9 +235,20 @@ function ReviewDetail({ review }: { review: Review }) {
 
   const isManualPaste = review.status === 'reply_pending_manual'
   const isGoogleManual = review.source === 'google_business' && isManualPaste
+  const wordCount = draft.trim() ? draft.trim().split(/\s+/).length : 0
 
   return (
     <div className="max-w-2xl">
+      <div className="mb-3">
+        <p style={{ fontSize: 'var(--text-base)', fontWeight: 500, color: 'var(--color-text)' }}>
+          {review.reviewer_name}
+        </p>
+        {(review.title || review.product_title) && (
+          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-muted)', marginTop: '2px' }}>
+            {review.title ?? review.product_title}
+          </p>
+        )}
+      </div>
       <div className="flex items-center gap-3 mb-4">
         <StarRating rating={review.rating} />
         <PlatformBadge source={review.source} />
@@ -239,16 +267,31 @@ function ReviewDetail({ review }: { review: Review }) {
 
       {action?.order_context && (
         <div
-          className="rounded-md px-4 py-3 mb-4 flex items-center gap-2"
+          className="rounded-md px-4 py-3 mb-4"
           style={{
             backgroundColor: 'var(--color-surface)',
             border: '1px solid var(--color-border)',
             borderRadius: 'var(--radius-md)',
           }}
         >
-          <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-muted)' }}>
-            {JSON.stringify(action.order_context).slice(0, 80)}
-          </span>
+          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text)', fontWeight: 500 }}>
+            {action.order_context.order_name ? `Order ${action.order_context.order_name}` : 'Order'}
+            {' · '}
+            {action.order_context.fulfillment_status === 'fulfilled'
+              ? 'Delivered'
+              : action.order_context.fulfillment_status ?? 'Unfulfilled'}
+            {(() => {
+              const d = action.order_context.created_at ? new Date(action.order_context.created_at) : null
+              return d && !isNaN(d.getTime())
+                ? ` · ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+                : null
+            })()}
+          </p>
+          {Array.isArray(action.order_context.line_items) && action.order_context.line_items.length > 0 && (
+            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', marginTop: '4px' }}>
+              {action.order_context.line_items.map((i) => `${i.title} ×${i.quantity}`).join(', ')}
+            </p>
+          )}
         </div>
       )}
 
@@ -257,6 +300,9 @@ function ReviewDetail({ review }: { review: Review }) {
           <div className="flex items-center gap-2 mb-2">
             <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-muted)' }}>
               Draft reply
+            </span>
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', opacity: 0.7 }}>
+              {wordCount} words
             </span>
             {action.confidence !== undefined && (
               <span
