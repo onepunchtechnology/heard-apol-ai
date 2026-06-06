@@ -18,11 +18,9 @@ interface ReviewAction {
 
 interface AgentTraceStep {
   step: string
-  label: string
   status: string
-  summary: string
-  metadata?: Record<string, unknown>
-  occurred_at: string
+  at: string
+  [key: string]: unknown
 }
 
 interface Review {
@@ -432,27 +430,33 @@ function AgentTrace({ steps }: { steps: AgentTraceStep[] }) {
         Agent Replay
       </p>
       <div className="flex flex-col gap-2">
-        {steps.map((step, i) => (
-          <div key={i} className="flex items-start gap-3">
-            <span
-              className="font-mono"
-              style={{
-                fontSize: 'var(--text-xs)',
-                color: step.status === 'complete' ? 'var(--color-success)' : 'var(--color-muted)',
-                width: '80px',
-                flexShrink: 0,
-              }}
-            >
-              {step.label.toUpperCase()}
-            </span>
-            <span
-              className="font-mono"
-              style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)' }}
-            >
-              {step.summary}
-            </span>
-          </div>
-        ))}
+        {steps.map((step, i) => {
+          const extras = Object.entries(step)
+            .filter(([k]) => !['step', 'status', 'at'].includes(k))
+            .map(([k, v]) => `${k}=${typeof v === 'object' ? JSON.stringify(v) : v}`)
+            .join(' ')
+          return (
+            <div key={i} className="flex items-start gap-3">
+              <span
+                className="font-mono"
+                style={{
+                  fontSize: 'var(--text-xs)',
+                  color: step.status === 'complete' ? 'var(--color-success)' : 'var(--color-muted)',
+                  width: '80px',
+                  flexShrink: 0,
+                }}
+              >
+                {step.step.toUpperCase()}
+              </span>
+              <span
+                className="font-mono"
+                style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)' }}
+              >
+                {step.status}{extras ? ` — ${extras}` : ''}
+              </span>
+            </div>
+          )
+        })}
       </div>
     </div>
   )

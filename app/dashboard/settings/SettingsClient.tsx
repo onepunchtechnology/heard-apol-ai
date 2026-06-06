@@ -39,13 +39,12 @@ export default function SettingsClient({
     e.preventDefault()
     setSaving(true)
     await fetch('/api/settings/brand-voice', {
-      method: 'POST',
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        storeId: store?.id,
-        sampleReplies: samples.split('\n').filter(Boolean),
+        sample_replies: samples.split('\n').filter(Boolean),
         rules,
-        toneDescription: tone,
+        tone_description: tone,
       }),
     })
     setSaved(true)

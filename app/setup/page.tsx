@@ -36,7 +36,7 @@ export default function SetupPage() {
     const res = await fetch('/api/setup/shopify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ shopDomain, accessToken: shopifyToken }),
+      body: JSON.stringify({ store_domain: shopDomain, access_token: shopifyToken }),
     })
     if (!res.ok) {
       const { error: err } = await res.json()
@@ -54,7 +54,7 @@ export default function SetupPage() {
     const res = await fetch('/api/setup/judgeme', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ shopDomain, apiToken: judgemeToken }),
+      body: JSON.stringify({ judgeme_api_token: judgemeToken }),
     })
     if (!res.ok) {
       const { error: err } = await res.json()
@@ -76,9 +76,9 @@ export default function SetupPage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        sampleReplies: sampleReplies.split('\n').filter(Boolean),
+        sample_replies: sampleReplies.split('\n').filter(Boolean),
         rules,
-        toneDescription: tone,
+        tone_description: tone,
       }),
     })
     router.push('/dashboard')

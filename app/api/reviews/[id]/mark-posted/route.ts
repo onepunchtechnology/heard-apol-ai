@@ -15,6 +15,24 @@ export async function POST(
 
   const admin = createAdminClient()
 
+  const { data: reviewData } = await admin
+    .from('reviews')
+    .select('store_id')
+    .eq('id', reviewId)
+    .maybeSingle()
+
+  if (!reviewData) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  const { data: storeData } = await admin
+    .from('stores')
+    .select('user_id')
+    .eq('id', reviewData.store_id)
+    .maybeSingle()
+
+  if (!storeData || storeData.user_id !== user.id) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   await admin.from('reviews').update({ status: 'approved' }).eq('id', reviewId)
   await admin
     .from('review_actions')

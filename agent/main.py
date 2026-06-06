@@ -39,12 +39,15 @@ async def _run(mode: str, review_id: str | None) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Heard review agent")
-    parser.add_argument("--mode", choices=["sweep", "single"], default="sweep")
+    parser.add_argument("--mode", choices=["sweep", "single"], default=None)
     parser.add_argument("--review_id", default=None)
     args = parser.parse_args()
 
+    mode = args.mode or os.environ.get("MODE", "sweep")
+    review_id = args.review_id or os.environ.get("REVIEW_ID")
+
     _validate_env()
-    asyncio.run(_run(args.mode, args.review_id))
+    asyncio.run(_run(mode, review_id))
 
 
 if __name__ == "__main__":

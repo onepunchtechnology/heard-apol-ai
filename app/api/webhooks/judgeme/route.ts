@@ -41,17 +41,24 @@ export async function POST(request: NextRequest) {
     .update(rawBody)
     .digest('base64')
 
-  if (
-    !crypto.timingSafeEqual(
-      Buffer.from(signature),
-      Buffer.from(expectedSig),
-    )
-  ) {
+  const sigBuf = Buffer.from(signature, 'base64')
+  const expBuf = Buffer.from(expectedSig, 'base64')
+  const sigValid = sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf)
+  if (!sigValid) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
   }
 
-  const payload = JSON.parse(rawBody)
-  const review = payload.review
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let payload: any
+  try {
+    payload = JSON.parse(rawBody)
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+  }
+  const review = payload?.review
+  if (!review) {
+    return NextResponse.json({ error: 'Missing review payload' }, { status: 400 })
+  }
 
   const { data: savedReview } = await supabase
     .from('reviews')
