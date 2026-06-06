@@ -65,27 +65,37 @@ export default function ReviewsClient({ reviews }: { reviews: Review[] }) {
     reviews.find((r) => r.status === 'needs_review')?.id ?? null,
   )
   const [postedIds, setPostedIds] = useState<Set<string>>(new Set())
+  const [locallyApprovedIds, setLocallyApprovedIds] = useState<Set<string>>(new Set())
 
-  const filtered = filterReviews(reviews, filter)
+  const effectiveReviews = reviews.map((r) =>
+    locallyApprovedIds.has(r.id) ? { ...r, status: 'approved' as const } : r,
+  )
+
+  const filtered = filterReviews(effectiveReviews, filter)
   const selected = filtered.find((r) => r.id === selectedId) ?? null
 
-  const escalatedCount = reviews.filter(
+  const escalatedCount = effectiveReviews.filter(
     (r) => r.status === 'needs_review' || r.status === 'reply_pending_manual',
   ).length
-  const autoRepliedCount = reviews.filter(
+  const autoRepliedCount = effectiveReviews.filter(
     (r) => r.status === 'auto_posted' || r.status === 'approved',
   ).length
   const allCaughtUp = reviews.length > 0 && escalatedCount === 0
 
   function handlePosted(id: string) {
     setPostedIds((prev) => new Set(Array.from(prev).concat(id)))
-    // Collapse the row after 3s
+    const nextEscalated = effectiveReviews.find(
+      (r) => (r.status === 'needs_review' || r.status === 'reply_pending_manual') && r.id !== id,
+    )
+    const nextId = nextEscalated?.id ?? null
     setTimeout(() => {
       setPostedIds((prev) => {
         const next = new Set(prev)
         next.delete(id)
         return next
       })
+      setLocallyApprovedIds((prev) => new Set(Array.from(prev).concat(id)))
+      setSelectedId(nextId)
     }, 3000)
   }
 
@@ -162,9 +172,10 @@ export default function ReviewsClient({ reviews }: { reviews: Review[] }) {
         <div className="flex-1 overflow-y-auto">
           {filtered.map((review) => {
             const action = review.review_actions?.[0]
+            const effectiveStatus = locallyApprovedIds.has(review.id) ? 'approved' : review.status
             const isEscalated =
-              review.status === 'needs_review' || review.status === 'reply_pending_manual'
-            const isAutoReplied = review.status === 'auto_posted' || review.status === 'approved'
+              effectiveStatus === 'needs_review' || effectiveStatus === 'reply_pending_manual'
+            const isAutoReplied = effectiveStatus === 'auto_posted' || effectiveStatus === 'approved'
             const isSelected = review.id === selectedId
             const justPosted = postedIds.has(review.id)
 
@@ -226,7 +237,7 @@ export default function ReviewsClient({ reviews }: { reviews: Review[] }) {
                 </p>
                 {/* Line 3: status badge + reason tag */}
                 <div className="flex items-center gap-2">
-                  <StatusBadge status={justPosted ? 'approved' : review.status} />
+                  <StatusBadge status={justPosted ? 'approved' : effectiveStatus} />
                   {action && isEscalated && (
                     <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)' }}>
                       {reasonTag(review)}

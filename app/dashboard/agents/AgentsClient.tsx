@@ -63,7 +63,7 @@ function parseTrace(trace: unknown): Array<{ label: string; data: string; color:
     : []
 
   return steps
-    .filter((s) => s.step !== 'claim') // omit internal claim step
+    .filter((s) => s.step !== 'claim' && !(s.step === 'fetch_order_context' && String(s.status ?? '') === 'skipped'))
     .map((s) => {
       const status = String(s.status ?? '')
       let label = String(s.step ?? '').toUpperCase()
@@ -215,8 +215,11 @@ export default function AgentsClient({
               const tr = action?.agent_trace as { steps?: Array<{ step: string; passed?: boolean }> } | null
               return tr?.steps?.some((s) => s.step === 'guardrails' && s.passed === false) ?? false
             })()
+            const isProcessing = review.status === 'processing'
 
-            const statusColor = isAutoPosted
+            const statusColor = isProcessing
+              ? 'var(--color-accent)'
+              : isAutoPosted
               ? 'var(--color-success)'
               : isBlocked
               ? 'var(--color-escalate)'
@@ -224,7 +227,9 @@ export default function AgentsClient({
               ? 'var(--color-warning)'
               : 'var(--color-muted)'
 
-            const outcomeLabel = isAutoPosted
+            const outcomeLabel = isProcessing
+              ? 'processing'
+              : isAutoPosted
               ? 'auto-posted'
               : isBlocked
               ? 'blocked'
@@ -232,7 +237,9 @@ export default function AgentsClient({
               ? 'escalated'
               : review.status
 
-            const outcomeStyle = isAutoPosted
+            const outcomeStyle = isProcessing
+              ? { bg: 'var(--color-surface)', color: 'var(--color-accent)' }
+              : isAutoPosted
               ? { bg: 'var(--color-success-bg)', color: 'var(--color-success)' }
               : isBlocked || isEscalated
               ? { bg: 'var(--color-escalate-bg)', color: 'var(--color-escalate)' }
@@ -260,6 +267,7 @@ export default function AgentsClient({
                 >
                   {/* Status dot */}
                   <span
+                    className={isProcessing ? 'pulse' : undefined}
                     style={{
                       width: '8px',
                       height: '8px',
@@ -297,6 +305,7 @@ export default function AgentsClient({
                     }}
                   >
                     {(() => {
+                      if (review.status === 'processing') return '…'
                       const secs = durations[review.id]
                       if (secs == null) return '—'
                       return secs < 10 ? `${secs.toFixed(1)}s` : `${Math.round(secs)}s`

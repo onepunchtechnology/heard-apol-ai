@@ -136,6 +136,7 @@ export default function SetupPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const [storeConnected, setStoreConnected] = useState(false)
   const [shopDomain, setShopDomain] = useState('')
   const [shopifyToken, setShopifyToken] = useState('')
   const [judgemeToken, setJudgemeToken] = useState('')
@@ -149,6 +150,7 @@ export default function SetupPage() {
     setLoading(true)
     setError(null)
     try {
+      let anyConnected = false
       if (shopDomain && shopifyToken) {
         const res = await fetch('/api/setup/shopify', {
           method: 'POST',
@@ -160,6 +162,7 @@ export default function SetupPage() {
           setError(err ?? 'Shopify connection failed')
           return
         }
+        anyConnected = true
       }
       if (judgemeToken) {
         const res = await fetch('/api/setup/judgeme', {
@@ -172,7 +175,9 @@ export default function SetupPage() {
           setError(err ?? 'Judge.me connection failed')
           return
         }
+        anyConnected = true
       }
+      setStoreConnected(anyConnected)
       setStep(2)
     } finally {
       setLoading(false)
@@ -286,8 +291,10 @@ export default function SetupPage() {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <div style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: 'var(--color-success)' }} />
-          <span style={{ fontFamily: 'Epilogue', fontSize: '13px', color: 'var(--color-muted)' }}>OhayoPop · Live</span>
+          <div style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: storeConnected ? 'var(--color-success)' : 'var(--color-muted)' }} />
+          <span style={{ fontFamily: 'Epilogue', fontSize: '13px', color: 'var(--color-muted)' }}>
+            {storeConnected ? 'OhayoPop · Live' : 'No store connected'}
+          </span>
         </div>
         <div style={{ marginTop: 'auto', paddingTop: '32px' }}>
           <p style={{ fontFamily: 'Epilogue', fontSize: '12px', color: 'var(--color-muted)', margin: 0 }}>heard.apol.ai</p>
@@ -399,7 +406,9 @@ export default function SetupPage() {
           You&apos;re all set.
         </h1>
         <p style={{ fontFamily: 'Epilogue', fontSize: '15px', color: 'var(--color-muted)', maxWidth: '380px', lineHeight: 1.6, margin: '0 0 32px' }}>
-          Heard is now monitoring OhayoPop reviews and will reply automatically. Check the Activity screen for live updates.
+          {storeConnected
+            ? 'Heard is now monitoring OhayoPop reviews and will reply automatically. Check the Activity screen for live updates.'
+            : 'No store connected yet. Visit Settings to connect your store and activate review monitoring.'}
         </p>
         <div style={{ display: 'flex', gap: '12px', marginBottom: '32px', width: '100%', justifyContent: 'center' }}>
           <div style={{ flex: 1, maxWidth: '180px', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', padding: '16px' }}>

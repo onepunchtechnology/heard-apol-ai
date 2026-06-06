@@ -42,7 +42,7 @@ export default async function ActivityPage() {
         id, reviewer_name, rating, body, source, received_at, status,
         review_actions (risk_score, sentiment_label, agent_reasoning)
       `)
-      .eq('status', 'needs_review')
+      .in('status', ['needs_review', 'reply_pending_manual'])
       .order('received_at', { ascending: false })
       .limit(5),
     supabase

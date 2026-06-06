@@ -216,13 +216,15 @@ export default function SettingsClient({
                   {tokenSaving ? 'Updating…' : tokenResult === 'saved' ? 'Saved ✓' : 'Update Token'}
                 </button>
                 <button
+                  disabled
                   style={{
                     background: 'none',
                     border: 'none',
                     fontSize: 'var(--text-sm)',
                     color: 'var(--color-escalate)',
-                    cursor: 'pointer',
+                    cursor: 'not-allowed',
                     padding: 0,
+                    opacity: 0.5,
                   }}
                 >
                   Disconnect
@@ -242,14 +244,16 @@ export default function SettingsClient({
                 Connected via OAuth · {store.store_name ?? store.store_domain}
               </p>
               <button
+                disabled
                 style={{
                   marginTop: '12px',
                   background: 'none',
                   border: 'none',
                   fontSize: 'var(--text-sm)',
                   color: 'var(--color-escalate)',
-                  cursor: 'pointer',
+                  cursor: 'not-allowed',
                   padding: 0,
+                  opacity: 0.5,
                 }}
               >
                 Disconnect store
