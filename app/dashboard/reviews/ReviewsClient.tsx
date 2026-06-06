@@ -62,7 +62,7 @@ function reasonTag(review: Review): string {
 export default function ReviewsClient({ reviews }: { reviews: Review[] }) {
   const [filter, setFilter] = useState<Filter>('All')
   const [selectedId, setSelectedId] = useState<string | null>(
-    reviews.find((r) => r.status === 'needs_review')?.id ?? reviews[0]?.id ?? null,
+    reviews.find((r) => r.status === 'needs_review')?.id ?? null,
   )
   const [postedIds, setPostedIds] = useState<Set<string>>(new Set())
 

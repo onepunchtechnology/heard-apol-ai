@@ -125,10 +125,12 @@ export default function AgentsClient({
   runs,
   reviews,
   storeName,
+  durations,
 }: {
   runs: AgentRun[]
   reviews: Review[]
   storeName: string | null
+  durations: Record<string, number>
 }) {
   const [filter, setFilter] = useState<FilterTab>('All')
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -285,7 +287,7 @@ export default function AgentsClient({
                     {storeName ?? 'OhayoPop'}
                   </span>
 
-                  {/* Duration — placeholder until per-review timing is available */}
+                  {/* Duration derived from agent_run that processed this review */}
                   <span
                     style={{
                       fontFamily: '"Martian Mono", monospace',
@@ -294,7 +296,11 @@ export default function AgentsClient({
                       flexShrink: 0,
                     }}
                   >
-                    —
+                    {(() => {
+                      const secs = durations[review.id]
+                      if (secs == null) return '—'
+                      return secs < 10 ? `${secs.toFixed(1)}s` : `${Math.round(secs)}s`
+                    })()}
                   </span>
 
                   {/* Outcome badge */}

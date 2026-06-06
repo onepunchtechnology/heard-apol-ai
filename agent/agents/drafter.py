@@ -1,12 +1,23 @@
 import json
+import os
+import sys
 import uuid
+
 from google.adk import Agent, Runner
 from google.adk.sessions import InMemorySessionService
+from google.adk.tools.mcp_tool.mcp_toolset import McpToolset, StdioConnectionParams
 from google.genai import types
+from mcp import StdioServerParameters
+
+_MCP_SERVER = os.path.join(os.path.dirname(__file__), "..", "tools", "shopify_mcp_server.py")
 
 INSTRUCTION = """You are a brand reply drafter for an e-commerce store's review response agent.
 
-Draft a reply to the customer review. Follow the brand voice config exactly.
+You have access to a `fetch_order_context` tool that looks up Shopify order details by reviewer name.
+
+Steps:
+1. If classification shows `needs_order_context: true`, call `fetch_order_context` with the reviewer's name BEFORE drafting.
+2. Draft a reply using the brand voice config, review content, classification, and any order context retrieved.
 
 Output ONLY a valid JSON object — no markdown, no explanation, no code fences.
 
@@ -27,25 +38,13 @@ Rules:
 
 
 class DrafterAgent:
-    def __init__(self) -> None:
-        self._agent = Agent(
-            name="drafter",
-            model="gemini-2.5-flash",
-            instruction=INSTRUCTION,
-            description="Drafts on-brand replies to customer reviews",
-        )
-        self._runner = Runner(
-            app_name="heard_drafter",
-            agent=self._agent,
-            session_service=InMemorySessionService(),
-        )
-
     async def draft(
         self,
         review: dict,
         classification: dict,
         brand_voice: dict | None,
-        order_context: dict | None,
+        shop_domain: str | None = None,
+        access_token: str | None = None,
     ) -> dict:
         brand_config = ""
         if brand_voice:
@@ -55,10 +54,6 @@ Brand Voice Config:
 - Rules: {json.dumps(brand_voice.get('rules', []))}
 - Sample replies: {json.dumps(brand_voice.get('sample_replies', [])[:2])}
 """
-
-        order_section = ""
-        if order_context:
-            order_section = f"\nOrder Context:\n{json.dumps(order_context, indent=2)}\n"
 
         prompt = f"""{brand_config}
 Review to reply to:
@@ -70,22 +65,56 @@ Review to reply to:
 Classification:
 - Sentiment: {classification.get('sentiment_label')}
 - Risk Score: {classification.get('risk_score')}
+- Needs order context: {classification.get('needs_order_context', False)}
 - Reasoning: {classification.get('agent_reasoning')}
-{order_section}
-Draft a reply."""
+
+If needs_order_context is true, call fetch_order_context before drafting. Then output the JSON reply."""
 
         message = types.Content(role="user", parts=[types.Part(text=prompt)])
 
+        env = {
+            **os.environ,
+            "SHOPIFY_SHOP_DOMAIN": shop_domain or "",
+            "SHOPIFY_ACCESS_TOKEN": access_token or "",
+        }
+
+        toolset = McpToolset(
+            connection_params=StdioConnectionParams(
+                server_params=StdioServerParameters(
+                    command=sys.executable,
+                    args=[_MCP_SERVER],
+                    env=env,
+                ),
+                timeout=10.0,
+            )
+        )
+
+        agent = Agent(
+            name="drafter",
+            model="gemini-2.5-flash",
+            instruction=INSTRUCTION,
+            description="Drafts on-brand replies to customer reviews; uses Shopify MCP for order context on complaints",
+            tools=[toolset],
+        )
+        runner = Runner(
+            app_name="heard_drafter",
+            agent=agent,
+            session_service=InMemorySessionService(),
+        )
+
         response_text = ""
-        async for event in self._runner.run_async(
-            user_id="orchestrator",
-            session_id=f"draft_{uuid.uuid4().hex}",
-            new_message=message,
-        ):
-            if event.content and event.content.parts:
-                for part in event.content.parts:
-                    if part.text:
-                        response_text += part.text
+        try:
+            async for event in runner.run_async(
+                user_id="orchestrator",
+                session_id=f"draft_{uuid.uuid4().hex}",
+                new_message=message,
+            ):
+                if event.content and event.content.parts:
+                    for part in event.content.parts:
+                        if hasattr(part, "text") and part.text:
+                            response_text += part.text
+        finally:
+            await toolset.close()
 
         cleaned = response_text.strip()
         if cleaned.startswith("```"):

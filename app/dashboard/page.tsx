@@ -11,6 +11,7 @@ export default async function ActivityPage() {
     { count: autoPostedCount },
     { count: escalatedCount },
     { count: totalCount },
+    { count: storeCount },
     { data: recentEscalated },
     { data: trendRows },
   ] = await Promise.all([
@@ -27,11 +28,14 @@ export default async function ActivityPage() {
     supabase
       .from('reviews')
       .select('*', { count: 'exact', head: true })
-      .eq('status', 'needs_review'),
+      .in('status', ['needs_review', 'reply_pending_manual']),
     supabase
       .from('reviews')
       .select('*', { count: 'exact', head: true })
       .not('status', 'eq', 'pending'),
+    supabase
+      .from('stores')
+      .select('id', { count: 'exact', head: true }),
     supabase
       .from('reviews')
       .select(`
@@ -69,5 +73,5 @@ export default async function ActivityPage() {
     lastRunAt: latestRun ? (latestRun as { completed_at: string | null }).completed_at : null,
   }
 
-  return <ActivityClient stats={stats} recentEscalated={recentEscalated ?? []} trend={trend} />
+  return <ActivityClient stats={stats} recentEscalated={recentEscalated ?? []} trend={trend} storeCount={storeCount ?? 1} />
 }

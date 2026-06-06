@@ -32,9 +32,11 @@ const SAMPLE_REPLIES = [
 export default function SettingsClient({
   store,
   brandVoice,
+  judgemeConnected,
 }: {
   store: Store | null
   brandVoice: BrandVoice | null
+  judgemeConnected: boolean
 }) {
   // Brand voice state
   const [description, setDescription] = useState(brandVoice?.tone_description ?? '')
@@ -50,8 +52,29 @@ export default function SettingsClient({
 
   // Store connections state
   const [judgeToken, setJudgeToken] = useState('')
+  const [tokenSaving, setTokenSaving] = useState(false)
+  const [tokenResult, setTokenResult] = useState<'saved' | 'error' | null>(null)
   const [googlePaste, setGooglePaste] = useState('')
   const [previewIdx, setPreviewIdx] = useState(0)
+
+  async function handleUpdateToken() {
+    if (!judgeToken.trim()) return
+    setTokenSaving(true)
+    setTokenResult(null)
+    const res = await fetch('/api/settings/judgeme-token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: judgeToken }),
+    })
+    setTokenSaving(false)
+    if (res.ok) {
+      setJudgeToken('')
+      setTokenResult('saved')
+      setTimeout(() => setTokenResult(null), 2000)
+    } else {
+      setTokenResult('error')
+    }
+  }
 
   function addPhrase(phrase: string) {
     const trimmed = phrase.trim()
@@ -136,7 +159,7 @@ export default function SettingsClient({
                 <span style={{ fontSize: 'var(--text-base)', fontWeight: 500, color: 'var(--color-text)' }}>
                   Judge.me
                 </span>
-                <StatusPill connected />
+                <StatusPill connected={judgemeConnected} />
               </div>
               <label style={{ fontSize: 'var(--text-sm)', fontWeight: 500, color: 'var(--color-text)', display: 'block', marginBottom: '6px' }}>
                 API Token
@@ -167,22 +190,30 @@ export default function SettingsClient({
               >
                 Where do I find this?
               </a>
+              {tokenResult === 'error' && (
+                <p style={{ fontSize: '12px', color: 'var(--color-escalate)', margin: '6px 0 0' }}>
+                  Failed to update token. Please try again.
+                </p>
+              )}
               <div className="flex gap-3 items-center" style={{ marginTop: '12px' }}>
                 <button
-                  onClick={() => {}}
+                  onClick={handleUpdateToken}
+                  disabled={tokenSaving || !judgeToken.trim()}
                   style={{
                     height: '40px',
                     padding: '0 16px',
-                    backgroundColor: 'var(--color-accent)',
-                    color: 'var(--color-text)',
+                    backgroundColor: tokenResult === 'saved' ? 'var(--color-success-bg)' : 'var(--color-accent)',
+                    color: tokenResult === 'saved' ? 'var(--color-success)' : 'var(--color-text)',
                     border: 'none',
                     borderRadius: 'var(--radius-md)',
                     fontSize: '14px',
                     fontWeight: 500,
-                    cursor: 'pointer',
+                    cursor: tokenSaving || !judgeToken.trim() ? 'not-allowed' : 'pointer',
+                    opacity: tokenSaving || !judgeToken.trim() ? 0.5 : 1,
+                    transition: `background-color var(--duration-short) var(--ease-out), color var(--duration-short) var(--ease-out)`,
                   }}
                 >
-                  Update Token
+                  {tokenSaving ? 'Updating…' : tokenResult === 'saved' ? 'Saved ✓' : 'Update Token'}
                 </button>
                 <button
                   style={{

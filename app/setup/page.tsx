@@ -182,7 +182,8 @@ export default function SetupPage() {
   async function handleStep2(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
-    await fetch('/api/setup/brand-voice', {
+    setError(null)
+    const res = await fetch('/api/setup/brand-voice', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -192,6 +193,11 @@ export default function SetupPage() {
       }),
     })
     setLoading(false)
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}))
+      setError(json.error ?? 'Could not save brand voice. Please complete Step 1 first.')
+      return
+    }
     setStep(3)
   }
 
@@ -334,6 +340,11 @@ export default function SetupPage() {
       <div style={{ width: '100%', maxWidth: '420px' }}>
         <ProgressPills step={step} />
         <form onSubmit={handleStep2} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {error && (
+            <div style={{ padding: '12px 16px', backgroundColor: 'var(--color-escalate-bg)', borderRadius: 'var(--radius-md)', fontFamily: 'Epilogue', fontSize: '13px', color: 'var(--color-escalate)' }}>
+              {error}
+            </div>
+          )}
           <div>
             <h1 style={{ fontFamily: 'Epilogue', fontWeight: 500, fontSize: '20px', color: 'var(--color-text)', margin: '0 0 8px' }}>
               Brand Voice Setup
@@ -407,7 +418,7 @@ export default function SetupPage() {
           Go to Dashboard →
         </button>
         <button
-          onClick={() => router.push('/settings')}
+          onClick={() => router.push('/dashboard/settings')}
           style={{ background: 'none', border: 'none', fontFamily: 'Epilogue', fontSize: '13px', color: 'var(--color-muted)', cursor: 'pointer' }}
         >
           Review your settings first

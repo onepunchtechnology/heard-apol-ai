@@ -26,7 +26,7 @@ export default function LoginPage() {
     const supabase = createClient()
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/confirm?next=/dashboard` },
+      options: { redirectTo: `${window.location.origin}/auth/confirm?next=/onboard` },
     })
   }
 
@@ -36,7 +36,7 @@ export default function LoginPage() {
     const supabase = createClient()
     await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: `${window.location.origin}/auth/confirm?next=/dashboard` },
+      options: { emailRedirectTo: `${window.location.origin}/auth/confirm?next=/onboard` },
     })
     setEmailState('sent')
   }

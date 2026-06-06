@@ -6,7 +6,6 @@ from supabase import create_client, Client
 
 from agents.classifier import ClassifierAgent
 from agents.drafter import DrafterAgent
-from tools.shopify import fetch_order_context
 from guardrails import check as guardrails_check
 
 SUPABASE_URL = os.environ["SUPABASE_URL"]
@@ -100,36 +99,21 @@ class Orchestrator:
 
         risk_score: int = classification.get("risk_score", 5)
         sentiment: str = classification.get("sentiment_label", "neutral")
-        needs_order_ctx: bool = classification.get("needs_order_context", False)
         reasoning: str = classification.get("agent_reasoning", "")
 
-        # --- 5. Fetch order context if the classifier says it's needed ---
-        order_context: dict | None = None
-        if needs_order_ctx and store.get("store_domain") and store.get("platform_access_token"):
-            try:
-                order_context = await fetch_order_context(
-                    shop_domain=store["store_domain"],
-                    access_token=store["platform_access_token"],
-                    reviewer_name=row.get("reviewer_name", ""),
-                )
-                trace.append(_step("fetch_order_context", "complete", found=order_context is not None))
-            except Exception as exc:
-                trace.append(_step("fetch_order_context", "warning", error=str(exc)))
-        else:
-            trace.append(_step("fetch_order_context", "skipped"))
-
-        # --- 6. Draft ---
+        # --- 5. Draft — DrafterAgent calls Shopify MCP for order context when needed ---
         try:
             draft_result = await self._drafter.draft(
                 review=row,
                 classification=classification,
                 brand_voice=bv,
-                order_context=order_context,
+                shop_domain=store.get("store_domain"),
+                access_token=store.get("platform_access_token"),
             )
             trace.append(_step("draft", "complete", confidence=draft_result.get("confidence")))
         except Exception as exc:
             trace.append(_step("draft", "failed", error=str(exc)))
-            self._save_action(review_id, risk_score, sentiment, reasoning, None, 0, order_context, [], {"steps": trace})
+            self._save_action(review_id, risk_score, sentiment, reasoning, None, 0, None, [], {"steps": trace})
             self._set_status(review_id, "needs_review")
             return
 
@@ -148,7 +132,7 @@ class Orchestrator:
         # --- 8. Persist action record ---
         self._save_action(
             review_id, risk_score, sentiment, reasoning,
-            draft_reply, confidence, order_context, gr.fired_flags,
+            draft_reply, confidence, None, gr.fired_flags,
             {"steps": trace},
         )
 

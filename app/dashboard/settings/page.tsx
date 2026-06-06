@@ -11,11 +11,12 @@ export default async function SettingsPage() {
 
   const { data: storeData } = await supabase
     .from('stores')
-    .select('id, store_domain, google_connection_mode, google_location_name')
+    .select('id, store_name, store_domain, google_connection_mode, google_location_name, judgeme_api_token')
     .eq('user_id', user!.id)
     .maybeSingle()
 
   const store = storeData as StoreRow | null
+  const judgemeConnected = !!(storeData as { judgeme_api_token?: string | null } | null)?.judgeme_api_token
 
   const { data: brandVoiceData } = store
     ? await supabase
@@ -27,5 +28,5 @@ export default async function SettingsPage() {
 
   const brandVoice = brandVoiceData as BrandVoiceRow | null
 
-  return <SettingsClient store={store} brandVoice={brandVoice} />
+  return <SettingsClient store={store} brandVoice={brandVoice} judgemeConnected={judgemeConnected} />
 }

@@ -28,11 +28,12 @@ interface ActivityClientProps {
   stats: Stats
   recentEscalated: EscalatedReview[]
   trend: number[]
+  storeCount: number
 }
 
 const DEMO_TREND = [3, 5, 2, 8, 4, 6, 7]
 
-export default function ActivityClient({ stats, recentEscalated, trend }: ActivityClientProps) {
+export default function ActivityClient({ stats, recentEscalated, trend, storeCount }: ActivityClientProps) {
   const chartValues = trend.length === 7 ? trend : DEMO_TREND
 
   return (
@@ -46,7 +47,7 @@ export default function ActivityClient({ stats, recentEscalated, trend }: Activi
           className="pulse inline-block flex-shrink-0 rounded-full"
           style={{ width: '8px', height: '8px', backgroundColor: 'var(--color-accent)' }}
         />
-        watching 1 store
+        watching {storeCount} store{storeCount !== 1 ? 's' : ''}
         {stats.lastRunAt && (
           <> · last reply {formatDistanceToNow(stats.lastRunAt)} ago</>
         )}
