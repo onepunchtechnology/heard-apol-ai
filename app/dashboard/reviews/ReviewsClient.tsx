@@ -20,15 +20,8 @@ interface ReviewAction {
   draft_reply: string
   final_reply: string | null
   order_context: OrderContext | null
-  agent_trace: AgentTraceStep[]
+  agent_trace: unknown
   confidence?: number
-}
-
-interface AgentTraceStep {
-  step: string
-  status: string
-  at: string
-  [key: string]: unknown
 }
 
 interface Review {
@@ -48,40 +41,68 @@ const FILTERS = ['All', 'Escalated', 'Auto-replied'] as const
 type Filter = (typeof FILTERS)[number]
 
 function filterReviews(reviews: Review[], filter: Filter): Review[] {
-  if (filter === 'Escalated') return reviews.filter((r) => r.status === 'needs_review' || r.status === 'reply_pending_manual')
-  if (filter === 'Auto-replied') return reviews.filter((r) => r.status === 'auto_posted' || r.status === 'approved')
+  if (filter === 'Escalated')
+    return reviews.filter((r) => r.status === 'needs_review' || r.status === 'reply_pending_manual')
+  if (filter === 'Auto-replied')
+    return reviews.filter((r) => r.status === 'auto_posted' || r.status === 'approved')
   return reviews
+}
+
+function reasonTag(review: Review): string {
+  const action = review.review_actions?.[0]
+  if (!action) return ''
+  if (action.risk_flags?.includes('refund_offer_risk')) return 'Refund risk'
+  if (action.risk_flags?.includes('competitor_mention')) return 'Competitor mention'
+  if (action.sentiment_label === 'negative' && action.risk_score >= 7) return 'High risk'
+  if (action.sentiment_label === 'negative') return 'Negative sentiment'
+  if (action.sentiment_label === 'positive') return 'Positive'
+  return 'Order issue'
 }
 
 export default function ReviewsClient({ reviews }: { reviews: Review[] }) {
   const [filter, setFilter] = useState<Filter>('All')
-  const [selectedId, setSelectedId] = useState<string | null>(reviews[0]?.id ?? null)
+  const [selectedId, setSelectedId] = useState<string | null>(
+    reviews.find((r) => r.status === 'needs_review')?.id ?? reviews[0]?.id ?? null,
+  )
+  const [postedIds, setPostedIds] = useState<Set<string>>(new Set())
 
   const filtered = filterReviews(reviews, filter)
-  const selected = filtered.find((r) => r.id === selectedId) ?? filtered[0] ?? null
+  const selected = filtered.find((r) => r.id === selectedId) ?? null
 
   const escalatedCount = reviews.filter(
     (r) => r.status === 'needs_review' || r.status === 'reply_pending_manual',
   ).length
+  const autoRepliedCount = reviews.filter(
+    (r) => r.status === 'auto_posted' || r.status === 'approved',
+  ).length
+  const allCaughtUp = reviews.length > 0 && escalatedCount === 0
 
+  function handlePosted(id: string) {
+    setPostedIds((prev) => new Set(Array.from(prev).concat(id)))
+    // Collapse the row after 3s
+    setTimeout(() => {
+      setPostedIds((prev) => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
+    }, 3000)
+  }
+
+  // No reviews at all
   if (reviews.length === 0) {
     return (
-      <div className="flex h-full">
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <p
-              className="font-display italic"
-              style={{ fontSize: 'var(--text-2xl)', color: 'var(--color-accent-dim)' }}
-            >
-              All caught up.
-            </p>
-            <p
-              className="mt-2"
-              style={{ fontSize: 'var(--text-sm)', color: 'var(--color-muted)' }}
-            >
-              Heard handled reviews overnight. Nothing needs your attention.
-            </p>
-          </div>
+      <div className="flex h-full items-center justify-center">
+        <div className="text-center">
+          <p
+            className="font-display italic"
+            style={{ fontSize: 'var(--text-2xl)', color: 'var(--color-accent-dim)' }}
+          >
+            All caught up.
+          </p>
+          <p className="mt-2" style={{ fontSize: 'var(--text-sm)', color: 'var(--color-muted)' }}>
+            Heard handled reviews overnight. Nothing needs your attention.
+          </p>
         </div>
       </div>
     )
@@ -89,42 +110,46 @@ export default function ReviewsClient({ reviews }: { reviews: Review[] }) {
 
   return (
     <div className="flex h-full">
+      {/* Left panel — review list */}
       <div
-        className="flex flex-col border-r overflow-hidden"
-        style={{ width: '420px', borderColor: 'var(--color-border)', flexShrink: 0 }}
+        className="flex flex-col overflow-hidden"
+        style={{ width: '420px', flexShrink: 0, borderRight: '1px solid var(--color-border)' }}
       >
+        {/* Header */}
         <div
           className="px-5 pt-5 pb-3 border-b"
           style={{ borderColor: 'var(--color-border)' }}
         >
-          <h1
-            style={{ fontSize: 'var(--text-lg)', fontWeight: 500, color: 'var(--color-text)' }}
-          >
+          <h1 style={{ fontSize: 'var(--text-lg)', fontWeight: 500, color: 'var(--color-text)' }}>
             Reviews
           </h1>
-          {escalatedCount > 0 && (
-            <p
-              className="mt-1"
-              style={{ fontSize: 'var(--text-sm)', color: 'var(--color-escalate)' }}
-            >
+          {allCaughtUp ? (
+            <p className="mt-1" style={{ fontSize: 'var(--text-sm)', color: 'var(--color-success)' }}>
+              {autoRepliedCount} auto-replied · 0 need attention
+            </p>
+          ) : escalatedCount > 0 ? (
+            <p className="mt-1" style={{ fontSize: 'var(--text-sm)', color: 'var(--color-escalate)' }}>
               {escalatedCount} need attention
             </p>
-          )}
+          ) : null}
+
+          {/* Filter tabs */}
           <div className="flex gap-1 mt-3">
             {FILTERS.map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className="px-3 py-1 rounded-sm text-sm transition-colors"
                 style={{
                   fontSize: 'var(--text-xs)',
+                  height: '28px',
+                  padding: '0 10px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: 'none',
+                  cursor: 'pointer',
                   backgroundColor: filter === f ? 'var(--color-surface-2)' : 'transparent',
                   color: filter === f ? 'var(--color-text)' : 'var(--color-muted)',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid',
-                  borderColor: filter === f ? 'var(--color-border)' : 'transparent',
-                  cursor: 'pointer',
-                  transitionDuration: 'var(--duration-short)',
+                  fontWeight: filter === f ? 500 : 400,
+                  transition: `background-color var(--duration-short) var(--ease-out)`,
                 }}
               >
                 {f}
@@ -133,59 +158,78 @@ export default function ReviewsClient({ reviews }: { reviews: Review[] }) {
           </div>
         </div>
 
+        {/* Review rows */}
         <div className="flex-1 overflow-y-auto">
           {filtered.map((review) => {
             const action = review.review_actions?.[0]
-            const isEscalated = review.status === 'needs_review' || review.status === 'reply_pending_manual'
+            const isEscalated =
+              review.status === 'needs_review' || review.status === 'reply_pending_manual'
             const isAutoReplied = review.status === 'auto_posted' || review.status === 'approved'
             const isSelected = review.id === selectedId
+            const justPosted = postedIds.has(review.id)
 
             return (
               <button
                 key={review.id}
                 onClick={() => setSelectedId(review.id)}
-                className="w-full text-left px-5 py-3 border-b flex flex-col gap-1 transition-colors"
+                className="w-full text-left border-b"
                 style={{
                   borderColor: 'var(--color-border)',
-                  borderLeft: isEscalated
+                  borderLeft: justPosted
+                    ? '3px solid var(--color-success)'
+                    : isEscalated
                     ? '3px solid var(--color-escalate)'
                     : isAutoReplied
                     ? '3px solid var(--color-success)'
                     : '3px solid transparent',
                   backgroundColor: isSelected ? 'var(--color-surface-2)' : 'transparent',
-                  height: '56px',
+                  display: 'block',
+                  padding: '10px 20px 10px 17px',
+                  minHeight: '56px',
                   cursor: 'pointer',
-                  transitionDuration: 'var(--duration-short)',
+                  transition: `background-color var(--duration-short) var(--ease-out), border-left-color var(--duration-short) var(--ease-out)`,
                 }}
               >
-                <div className="flex items-center gap-2">
+                {/* Line 1: stars + platform + name + time */}
+                <div className="flex items-center gap-2 mb-0.5">
                   <StarRating rating={review.rating} />
                   <PlatformBadge source={review.source} />
                   {review.reviewer_name && (
                     <span
                       className="truncate"
-                      style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text)', minWidth: 0, maxWidth: '100px' }}
+                      style={{
+                        fontSize: 'var(--text-xs)',
+                        color: 'var(--color-text)',
+                        maxWidth: '90px',
+                      }}
                     >
                       {review.reviewer_name}
                     </span>
                   )}
-                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', marginLeft: 'auto', flexShrink: 0 }}>
+                  <span
+                    style={{
+                      fontSize: 'var(--text-xs)',
+                      color: 'var(--color-muted)',
+                      marginLeft: 'auto',
+                      flexShrink: 0,
+                    }}
+                  >
                     {formatDistanceToNow(review.received_at)}
                   </span>
                 </div>
+                {/* Line 2: excerpt */}
                 <p
-                  className="truncate"
+                  className="truncate mb-0.5"
                   style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text)' }}
                 >
                   {review.body}
                 </p>
+                {/* Line 3: status badge + reason tag */}
                 <div className="flex items-center gap-2">
-                  <StatusBadge status={review.status} />
-                  {action?.risk_flags?.[0] && (
-                    <span
-                      style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)' }}
-                    >
-                      {action.risk_flags[0]}
+                  <StatusBadge status={justPosted ? 'approved' : review.status} />
+                  {action && isEscalated && (
+                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)' }}>
+                      {reasonTag(review)}
                     </span>
                   )}
                 </div>
@@ -195,9 +239,32 @@ export default function ReviewsClient({ reviews }: { reviews: Review[] }) {
         </div>
       </div>
 
+      {/* Right panel */}
       <div className="flex-1 overflow-y-auto p-6">
-        {selected ? (
-          <ReviewDetail key={selected.id} review={selected} />
+        {allCaughtUp && !selected ? (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <p
+                className="font-display italic"
+                style={{ fontSize: 'var(--text-2xl)', color: 'var(--color-accent-dim)', marginBottom: '12px' }}
+              >
+                All caught up.
+              </p>
+              <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-muted)', maxWidth: '320px' }}>
+                Heard handled {autoRepliedCount} review{autoRepliedCount !== 1 ? 's' : ''} overnight.
+                Nothing needs your attention.
+              </p>
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', marginTop: '8px' }}>
+                {reviews[0] && `Last reply posted ${formatDistanceToNow(reviews[0].received_at)} ago`}
+              </p>
+            </div>
+          </div>
+        ) : selected ? (
+          <ReviewDetail
+            key={selected.id}
+            review={selected}
+            onPosted={() => handlePosted(selected.id)}
+          />
         ) : (
           <div className="flex items-center justify-center h-full">
             <p style={{ color: 'var(--color-muted)', fontSize: 'var(--text-sm)' }}>
@@ -210,11 +277,24 @@ export default function ReviewsClient({ reviews }: { reviews: Review[] }) {
   )
 }
 
-function ReviewDetail({ review }: { review: Review }) {
+function ReviewDetail({
+  review,
+  onPosted,
+}: {
+  review: Review
+  onPosted: () => void
+}) {
   const action = review.review_actions?.[0]
   const [draft, setDraft] = useState(action?.draft_reply ?? '')
   const [loading, setLoading] = useState(false)
-  const [posted, setPosted] = useState(review.status === 'auto_posted' || review.status === 'approved')
+  const [posted, setPosted] = useState(
+    review.status === 'auto_posted' || review.status === 'approved',
+  )
+  const [editMode, setEditMode] = useState(false)
+
+  const isManualPaste = review.status === 'reply_pending_manual'
+  const isGoogleManual = review.source === 'google_business' && isManualPaste
+  const wordCount = draft.trim() ? draft.trim().split(/\s+/).length : 0
 
   async function handleApprove() {
     setLoading(true)
@@ -225,6 +305,7 @@ function ReviewDetail({ review }: { review: Review }) {
     })
     if (res.ok) {
       setPosted(true)
+      onPosted()
     }
     setLoading(false)
   }
@@ -233,22 +314,23 @@ function ReviewDetail({ review }: { review: Review }) {
     await fetch(`/api/reviews/${review.id}/reject`, { method: 'POST' })
   }
 
-  const isManualPaste = review.status === 'reply_pending_manual'
-  const isGoogleManual = review.source === 'google_business' && isManualPaste
-  const wordCount = draft.trim() ? draft.trim().split(/\s+/).length : 0
-
   return (
     <div className="max-w-2xl">
-      <div className="mb-3">
-        <p style={{ fontSize: 'var(--text-base)', fontWeight: 500, color: 'var(--color-text)' }}>
-          {review.reviewer_name}
-        </p>
-        {(review.title || review.product_title) && (
-          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-muted)', marginTop: '2px' }}>
-            {review.title ?? review.product_title}
+      {/* Header */}
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div>
+          <p style={{ fontSize: 'var(--text-base)', fontWeight: 500, color: 'var(--color-text)' }}>
+            {review.reviewer_name}
           </p>
-        )}
+          {(review.title || review.product_title) && (
+            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-muted)', marginTop: '2px' }}>
+              {review.title ?? review.product_title}
+            </p>
+          )}
+        </div>
       </div>
+
+      {/* Meta row */}
       <div className="flex items-center gap-3 mb-4">
         <StarRating rating={review.rating} />
         <PlatformBadge source={review.source} />
@@ -258,6 +340,7 @@ function ReviewDetail({ review }: { review: Review }) {
         </span>
       </div>
 
+      {/* Review body */}
       <p
         className="mb-4"
         style={{ fontSize: 'var(--text-base)', color: 'var(--color-text)', lineHeight: 1.6 }}
@@ -265,6 +348,7 @@ function ReviewDetail({ review }: { review: Review }) {
         {review.body}
       </p>
 
+      {/* Order context */}
       {action?.order_context && (
         <div
           className="rounded-md px-4 py-3 mb-4"
@@ -275,49 +359,61 @@ function ReviewDetail({ review }: { review: Review }) {
           }}
         >
           <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text)', fontWeight: 500 }}>
-            {action.order_context.order_name ? `Order ${action.order_context.order_name}` : 'Order'}
+            {action.order_context.order_name
+              ? `Order ${action.order_context.order_name}`
+              : 'Order'}
             {' · '}
             {action.order_context.fulfillment_status === 'fulfilled'
               ? 'Delivered'
               : action.order_context.fulfillment_status ?? 'Unfulfilled'}
             {(() => {
-              const d = action.order_context.created_at ? new Date(action.order_context.created_at) : null
+              const d = action.order_context.created_at
+                ? new Date(action.order_context.created_at)
+                : null
               return d && !isNaN(d.getTime())
                 ? ` · ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
                 : null
             })()}
           </p>
-          {Array.isArray(action.order_context.line_items) && action.order_context.line_items.length > 0 && (
-            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', marginTop: '4px' }}>
-              {action.order_context.line_items.map((i) => `${i.title} ×${i.quantity}`).join(', ')}
-            </p>
-          )}
+          {Array.isArray(action.order_context.line_items) &&
+            action.order_context.line_items.length > 0 && (
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', marginTop: '4px' }}>
+                {action.order_context.line_items
+                  .map((i) => `${i.title} ×${i.quantity}`)
+                  .join(', ')}
+              </p>
+            )}
         </div>
       )}
 
+      {/* Draft reply */}
       {action && (
         <div className="mb-4">
+          {/* Draft header: label + confidence + word count */}
           <div className="flex items-center gap-2 mb-2">
             <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-muted)' }}>
               Draft reply
             </span>
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', opacity: 0.7 }}>
-              {wordCount} words
-            </span>
             {action.confidence !== undefined && (
               <span
-                className="px-2 py-0.5 rounded-sm"
                 style={{
                   fontSize: 'var(--text-xs)',
                   backgroundColor: 'var(--color-success-bg)',
                   color: 'var(--color-success)',
+                  padding: '1px 6px',
                   borderRadius: 'var(--radius-sm)',
                 }}
               >
                 {action.confidence}% confidence
               </span>
             )}
+            <span
+              style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', opacity: 0.7 }}
+            >
+              {wordCount} words
+            </span>
           </div>
+
           <textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -325,30 +421,41 @@ function ReviewDetail({ review }: { review: Review }) {
             className="w-full rounded-md px-4 py-3 resize-none"
             style={{
               backgroundColor: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
+              border: editMode ? '1px solid var(--color-accent-dim)' : '1px solid var(--color-border)',
               borderRadius: 'var(--radius-md)',
               fontSize: 'var(--text-sm)',
               color: 'var(--color-text)',
               fontFamily: 'inherit',
+              outline: 'none',
+              transition: `border-color var(--duration-short) var(--ease-out)`,
             }}
+            onFocus={() => setEditMode(true)}
+            onBlur={() => setEditMode(false)}
           />
-          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', marginTop: '4px' }}>
-            AI-generated · brand voice
-          </p>
 
-          {action.agent_reasoning && (
-            <p
-              className="mt-2 italic"
-              style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)' }}
-            >
-              {action.agent_reasoning}
+          <div className="flex items-center justify-between mt-1">
+            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)' }}>
+              AI-generated · {review.source === 'judgeme' ? 'Judge.me' : 'Google'} brand voice
             </p>
-          )}
+            <button
+              style={{
+                background: 'none',
+                border: 'none',
+                fontSize: 'var(--text-xs)',
+                color: 'var(--color-muted)',
+                cursor: 'pointer',
+                padding: 0,
+              }}
+            >
+              Regenerate draft
+            </button>
+          </div>
         </div>
       )}
 
+      {/* Action buttons */}
       {!posted && action && (
-        <div className="flex gap-3">
+        <div className="flex items-center gap-3">
           <button
             onClick={handleReject}
             style={{
@@ -357,28 +464,45 @@ function ReviewDetail({ review }: { review: Review }) {
               background: 'none',
               border: 'none',
               cursor: 'pointer',
-              padding: '8px 0',
+              padding: '0 4px',
             }}
           >
             Skip
           </button>
+
+          <button
+            onClick={() => setEditMode(true)}
+            style={{
+              fontSize: 'var(--text-sm)',
+              color: 'var(--color-text)',
+              background: 'none',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-md)',
+              cursor: 'pointer',
+              padding: '7px 16px',
+              transition: `border-color var(--duration-short) var(--ease-out)`,
+            }}
+          >
+            Request Edit
+          </button>
+
           {isGoogleManual ? (
-            <ManualPasteButton reviewId={review.id} draft={draft} />
+            <ManualPasteButton reviewId={review.id} draft={draft} onPosted={onPosted} />
           ) : (
             <button
               onClick={handleApprove}
               disabled={loading}
-              className="px-4 py-2 rounded-md font-medium transition-opacity"
               style={{
                 backgroundColor: 'var(--color-accent)',
                 color: 'var(--color-text)',
+                border: 'none',
                 borderRadius: 'var(--radius-md)',
                 fontSize: 'var(--text-sm)',
                 fontWeight: 500,
-                border: 'none',
                 cursor: loading ? 'not-allowed' : 'pointer',
                 opacity: loading ? 0.5 : 1,
-                transitionDuration: 'var(--duration-short)',
+                padding: '8px 20px',
+                transition: `opacity var(--duration-short) var(--ease-out)`,
               }}
             >
               {loading ? 'Posting...' : 'Approve & Post'}
@@ -392,21 +516,25 @@ function ReviewDetail({ review }: { review: Review }) {
           className="flex items-center gap-2"
           style={{ color: 'var(--color-success)', fontSize: 'var(--text-sm)' }}
         >
-          <span>Posted</span>
+          <span>✓ Posted</span>
         </div>
-      )}
-
-      {action?.agent_trace && action.agent_trace.length > 0 && (
-        <AgentTrace steps={action.agent_trace} />
       )}
     </div>
   )
 }
 
-function ManualPasteButton({ reviewId, draft }: { reviewId: string; draft: string }) {
+function ManualPasteButton({
+  reviewId,
+  draft,
+  onPosted,
+}: {
+  reviewId: string
+  draft: string
+  onPosted: () => void
+}) {
   const [step, setStep] = useState<'idle' | 'copied'>('idle')
 
-  async function handleCopyPost() {
+  async function handleCopy() {
     await navigator.clipboard.writeText(draft)
     setStep('copied')
   }
@@ -417,30 +545,30 @@ function ManualPasteButton({ reviewId, draft }: { reviewId: string; draft: strin
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reply: draft }),
     })
+    onPosted()
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex items-center gap-2">
       <button
-        onClick={handleCopyPost}
-        className="px-4 py-2 rounded-md font-medium"
+        onClick={handleCopy}
         style={{
           backgroundColor: 'var(--color-accent)',
           color: 'var(--color-text)',
+          border: 'none',
           borderRadius: 'var(--radius-md)',
           fontSize: 'var(--text-sm)',
-          border: 'none',
           cursor: 'pointer',
+          padding: '8px 16px',
         }}
       >
         Copy &amp; Post to Google
       </button>
       {step === 'copied' && (
-        <div
-          className="flex items-center gap-2"
-          style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)' }}
-        >
-          <span>Copied. Did you post it?</span>
+        <div className="flex items-center gap-2">
+          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)' }}>
+            Copied. Did you post it?
+          </span>
           <button
             onClick={handleMarkPosted}
             style={{
@@ -459,74 +587,28 @@ function ManualPasteButton({ reviewId, draft }: { reviewId: string; draft: strin
   )
 }
 
-function AgentTrace({ steps }: { steps: AgentTraceStep[] }) {
-  return (
-    <div
-      className="mt-6 rounded-md p-4"
-      style={{
-        backgroundColor: 'var(--color-surface)',
-        borderRadius: 'var(--radius-md)',
-        border: '1px solid var(--color-border)',
-      }}
-    >
-      <p
-        className="mb-3"
-        style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', fontWeight: 500 }}
-      >
-        Agent Replay
-      </p>
-      <div className="flex flex-col gap-2">
-        {steps.map((step, i) => {
-          const extras = Object.entries(step)
-            .filter(([k]) => !['step', 'status', 'at'].includes(k))
-            .map(([k, v]) => `${k}=${typeof v === 'object' ? JSON.stringify(v) : v}`)
-            .join(' ')
-          return (
-            <div key={i} className="flex items-start gap-3">
-              <span
-                className="font-mono"
-                style={{
-                  fontSize: 'var(--text-xs)',
-                  color: step.status === 'complete' ? 'var(--color-success)' : 'var(--color-muted)',
-                  width: '80px',
-                  flexShrink: 0,
-                }}
-              >
-                {step.step.toUpperCase()}
-              </span>
-              <span
-                className="font-mono"
-                style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)' }}
-              >
-                {step.status}{extras ? ` — ${extras}` : ''}
-              </span>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
 function StarRating({ rating }: { rating: number }) {
   return (
-    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)' }}>
-      {'★'.repeat(rating)}{'☆'.repeat(5 - rating)}
+    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', flexShrink: 0 }}>
+      {'★'.repeat(rating)}
+      {'☆'.repeat(5 - rating)}
     </span>
   )
 }
 
 function PlatformBadge({ source }: { source: string }) {
-  const label = source === 'judgeme' ? 'Judge.me' : source === 'google_business' ? 'Google' : source
+  const label =
+    source === 'judgeme' ? 'Judge.me' : source === 'google_business' ? 'Google' : source
   return (
     <span
-      className="px-2 py-0.5"
       style={{
         fontSize: 'var(--text-xs)',
         backgroundColor: 'var(--color-surface)',
         color: 'var(--color-muted)',
+        padding: '1px 6px',
         borderRadius: 'var(--radius-sm)',
         border: '1px solid var(--color-border)',
+        flexShrink: 0,
       }}
     >
       {label}
@@ -536,26 +618,26 @@ function PlatformBadge({ source }: { source: string }) {
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { bg: string; color: string; label: string }> = {
-    needs_review:         { bg: 'var(--color-escalate-bg)', color: 'var(--color-escalate)',  label: 'escalated' },
-    reply_pending_manual: { bg: 'var(--color-warning-bg)',  color: 'var(--color-warning)',   label: 'manual post' },
-    auto_posted:          { bg: 'var(--color-success-bg)',  color: 'var(--color-success)',   label: 'auto-replied' },
-    approved:             { bg: 'var(--color-success-bg)',  color: 'var(--color-success)',   label: 'posted' },
-    pending:              { bg: 'var(--color-surface)',      color: 'var(--color-muted)',     label: 'pending' },
-    processing:           { bg: 'var(--color-warning-bg)',  color: 'var(--color-warning)',   label: 'processing' },
+    needs_review: { bg: 'var(--color-escalate-bg)', color: 'var(--color-escalate)', label: 'escalated' },
+    reply_pending_manual: { bg: 'var(--color-warning-bg)', color: 'var(--color-warning)', label: 'manual post' },
+    auto_posted: { bg: 'var(--color-success-bg)', color: 'var(--color-success)', label: 'auto-replied' },
+    approved: { bg: 'var(--color-success-bg)', color: 'var(--color-success)', label: 'posted' },
+    pending: { bg: 'var(--color-surface)', color: 'var(--color-muted)', label: 'pending' },
+    processing: { bg: 'var(--color-warning-bg)', color: 'var(--color-warning)', label: 'processing' },
   }
-  const config = map[status] ?? { bg: 'var(--color-surface)', color: 'var(--color-muted)', label: status }
-
+  const cfg = map[status] ?? { bg: 'var(--color-surface)', color: 'var(--color-muted)', label: status }
   return (
     <span
-      className="px-2 py-0.5"
       style={{
         fontSize: 'var(--text-xs)',
-        backgroundColor: config.bg,
-        color: config.color,
+        backgroundColor: cfg.bg,
+        color: cfg.color,
+        padding: '1px 6px',
         borderRadius: 'var(--radius-sm)',
+        flexShrink: 0,
       }}
     >
-      {config.label}
+      {cfg.label}
     </span>
   )
 }

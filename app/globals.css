@@ -71,3 +71,12 @@ body {
   outline: 2px solid var(--color-accent-dim);
   outline-offset: 2px;
 }
+
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.pulse {
+  animation: status-pulse 2.4s ease-in-out infinite;
+}

@@ -69,6 +69,11 @@ export default function LoginPage() {
         </div>
       </div>
 
+      <div>
+        <p style={{ fontFamily: 'Epilogue', fontSize: '12px', color: 'var(--color-muted)', margin: 0 }}>
+          OhayoPop · Anime Merchandise
+        </p>
+      </div>
     </div>
   )
 
