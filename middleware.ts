@@ -28,7 +28,10 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
-  const isAuthPath = pathname.startsWith('/login') || pathname.startsWith('/api/auth')
+  const isAuthPath =
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/auth/confirm') ||
+    pathname.startsWith('/api/auth')
   const isApiPath = pathname.startsWith('/api/webhooks')
   const isPublicPath = isAuthPath || isApiPath
 
