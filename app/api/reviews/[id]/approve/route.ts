@@ -62,8 +62,14 @@ export async function POST(
     postError = 'Google API mode not yet implemented'
   }
 
-  if (!posted && postError) {
-    return NextResponse.json({ error: postError }, { status: 502 })
+  // Fail if we were supposed to post to a live platform but couldn't.
+  // Google manual_paste approvals are intentionally silent (merchant posts manually).
+  const shouldHavePosted =
+    review.source === 'judgeme' ||
+    (review.source === 'google_business' && store.google_connection_mode === 'api')
+  if (shouldHavePosted && !posted) {
+    const msg = postError ?? 'Reply could not be posted to the review platform'
+    return NextResponse.json({ error: msg }, { status: 502 })
   }
 
   await admin.from('reviews').update({ status: 'approved' }).eq('id', reviewId)

@@ -97,7 +97,7 @@ class Orchestrator:
             self._set_status(review_id, "needs_review")
             return
 
-        risk_score: int = classification.get("risk_score", 5)
+        risk_score: int = int(classification.get("risk_score", 5) or 5)
         sentiment: str = classification.get("sentiment_label", "neutral")
         reasoning: str = classification.get("agent_reasoning", "")
 
@@ -126,7 +126,8 @@ class Orchestrator:
             return
 
         draft_reply: str = draft_result.get("draft_reply", "")
-        confidence: int = draft_result.get("confidence", 50)
+        confidence: int = int(draft_result.get("confidence", 50) or 50)
+        order_context: dict | None = draft_result.get("order_context") or None
 
         # --- 7. Guardrails ---
         gr = guardrails_check(draft_reply)
@@ -140,7 +141,7 @@ class Orchestrator:
         # --- 8. Persist action record ---
         self._save_action(
             review_id, risk_score, sentiment, reasoning,
-            draft_reply, confidence, None, gr.fired_flags,
+            draft_reply, confidence, order_context, gr.fired_flags,
             {"steps": trace},
         )
 

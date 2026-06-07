@@ -24,7 +24,8 @@ Output ONLY a valid JSON object — no markdown, no explanation, no code fences.
 Output schema:
 {
   "draft_reply": <the reply text, plain text, no markdown>,
-  "confidence": <integer 0-100, your confidence this reply is appropriate and on-brand>
+  "confidence": <integer 0-100, your confidence this reply is appropriate and on-brand>,
+  "order_context": <if you called fetch_order_context, include the raw order JSON object here; otherwise null>
 }
 
 Rules:
@@ -56,7 +57,7 @@ class DrafterAgent:
 Brand Voice Config:
 - Tone: {tone} ({"complaints and negative reviews" if is_negative else "positive and neutral reviews"})
 - Description: {brand_voice.get('tone_description', '')}
-- Rules: {json.dumps(brand_voice.get('rules', []))}
+- Prohibited phrases (NEVER use): {json.dumps(brand_voice.get('rules', []))}
 - Sample replies (brand voice grounding): {json.dumps(brand_voice.get('sample_replies', [])[:3])}
 """
 
@@ -77,29 +78,37 @@ If needs_order_context is true, call fetch_order_context before drafting. Then o
 
         message = types.Content(role="user", parts=[types.Part(text=prompt)])
 
+        needs_context = classification.get("needs_order_context", False)
         env = {
             **os.environ,
             "SHOPIFY_SHOP_DOMAIN": shop_domain or "",
             "SHOPIFY_ACCESS_TOKEN": access_token or "",
         }
 
-        toolset = McpToolset(
-            connection_params=StdioConnectionParams(
-                server_params=StdioServerParameters(
-                    command=sys.executable,
-                    args=[_MCP_SERVER],
-                    env=env,
-                ),
-                timeout=10.0,
+        # Only launch the MCP subprocess when order context is actually needed.
+        # Launching unconditionally would make a subprocess crash kill all drafts,
+        # not just the complaint path.
+        toolset = None
+        tools: list = []
+        if needs_context and shop_domain and access_token:
+            toolset = McpToolset(
+                connection_params=StdioConnectionParams(
+                    server_params=StdioServerParameters(
+                        command=sys.executable,
+                        args=[_MCP_SERVER],
+                        env=env,
+                    ),
+                    timeout=10.0,
+                )
             )
-        )
+            tools = [toolset]
 
         agent = Agent(
             name="drafter",
             model="gemini-2.5-flash",
             instruction=INSTRUCTION,
             description="Drafts on-brand replies to customer reviews; uses Shopify MCP for order context on complaints",
-            tools=[toolset],
+            tools=tools,
         )
         runner = Runner(
             app_name="heard_drafter",
@@ -119,11 +128,19 @@ If needs_order_context is true, call fetch_order_context before drafting. Then o
                         if hasattr(part, "text") and part.text:
                             response_text += part.text
         finally:
-            await toolset.close()
+            if toolset is not None:
+                await toolset.close()
 
         cleaned = response_text.strip()
         if cleaned.startswith("```"):
             cleaned = cleaned.split("```")[1]
             if cleaned.startswith("json"):
                 cleaned = cleaned[4:]
+        cleaned = cleaned.strip()
+        # When MCP tool calls precede the final output, preamble text is
+        # concatenated with the JSON. Find the start of the JSON object.
+        if cleaned and not cleaned.startswith("{"):
+            start = cleaned.find("{")
+            if start != -1:
+                cleaned = cleaned[start:]
         return json.loads(cleaned.strip())

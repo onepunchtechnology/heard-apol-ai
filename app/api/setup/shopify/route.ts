@@ -13,6 +13,9 @@ export async function POST(request: NextRequest) {
   }
 
   const domain = store_domain.replace(/^https?:\/\//, '').replace(/\/$/, '')
+  if (!/^[a-zA-Z0-9-]+\.myshopify\.com$/.test(domain)) {
+    return NextResponse.json({ error: 'store_domain must be a *.myshopify.com address' }, { status: 400 })
+  }
 
   const res = await fetch(`https://${domain}/admin/api/2026-01/shop.json`, {
     headers: { 'X-Shopify-Access-Token': access_token },
@@ -25,24 +28,16 @@ export async function POST(request: NextRequest) {
   const storeName = shopData?.shop?.name ?? null
 
   const admin = createAdminClient()
-  const { data: existing } = await admin.from('stores').select('id').eq('user_id', user.id).maybeSingle()
-
-  if (existing) {
-    await admin.from('stores').update({
-      store_domain: domain,
-      store_name: storeName,
-      platform: 'shopify',
-      platform_access_token: access_token,
-    }).eq('id', existing.id)
-  } else {
-    await admin.from('stores').insert({
+  await admin.from('stores').upsert(
+    {
       user_id: user.id,
       store_domain: domain,
       store_name: storeName,
       platform: 'shopify',
       platform_access_token: access_token,
-    })
-  }
+    },
+    { onConflict: 'user_id' },
+  )
 
   return NextResponse.json({ ok: true })
 }

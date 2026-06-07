@@ -9,7 +9,7 @@ _PROHIBITED_PATTERNS = [
     (r'\b(refund|money back|compensation|reimburs)\b', 'refund_offer'),
     (r'\b(competitor|better than|switch to|try [A-Z][a-z]+)\b', 'competitor_mention'),
     (r'\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b', 'phone_number_pii'),
-    (r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', 'email_pii'),
+    (r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b', 'email_pii'),
     (r'\b(free|freebie|discount code|promo code)\b', 'unsolicited_promo'),
     (r'(fuck|shit|ass|bitch|damn)\b', 'profanity'),
 ]

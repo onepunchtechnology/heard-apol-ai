@@ -289,23 +289,26 @@ export default function SetupPage() {
     e.preventDefault()
     setLoading(true)
     setError(null)
-    const res = await fetch('/api/setup/brand-voice', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        tone_positive: tonePositive,
-        tone_negative: toneNegative,
-        sample_replies: importedSamples,
-        rules: [],
-      }),
-    })
-    setLoading(false)
-    if (!res.ok) {
-      const json = await res.json().catch(() => ({}))
-      setError(json.error ?? 'Could not save brand voice. Please complete Step 1 first.')
-      return
+    try {
+      const res = await fetch('/api/setup/brand-voice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tone_positive: tonePositive,
+          tone_negative: toneNegative,
+          sample_replies: importedSamples,
+          rules: [],
+        }),
+      })
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}))
+        setError(json.error ?? 'Could not save brand voice. Please complete Step 1 first.')
+        return
+      }
+      setStep(4)
+    } finally {
+      setLoading(false)
     }
-    setStep(4)
   }
 
   const leftContent: Record<Step, React.ReactNode> = {

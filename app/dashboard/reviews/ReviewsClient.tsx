@@ -51,7 +51,7 @@ function filterReviews(reviews: Review[], filter: Filter): Review[] {
 function reasonTag(review: Review): string {
   const action = review.review_actions?.[0]
   if (!action) return ''
-  if (action.risk_flags?.includes('refund_offer_risk')) return 'Refund risk'
+  if (action.risk_flags?.includes('refund_offer')) return 'Refund risk'
   if (action.risk_flags?.includes('competitor_mention')) return 'Competitor mention'
   if (action.sentiment_label === 'negative' && action.risk_score >= 7) return 'High risk'
   if (action.sentiment_label === 'negative') return 'Negative sentiment'
