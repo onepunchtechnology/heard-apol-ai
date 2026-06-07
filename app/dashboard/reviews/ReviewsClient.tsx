@@ -308,6 +308,7 @@ function ReviewDetail({
     review.status === 'auto_posted' || review.status === 'approved',
   )
   const [editMode, setEditMode] = useState(false)
+  const [approveError, setApproveError] = useState<string | null>(null)
 
   const isManualPaste = review.status === 'reply_pending_manual'
   const isGoogleManual = review.source === 'google_business' && isManualPaste
@@ -315,6 +316,7 @@ function ReviewDetail({
 
   async function handleApprove() {
     setLoading(true)
+    setApproveError(null)
     const res = await fetch(`/api/reviews/${review.id}/approve`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -323,6 +325,9 @@ function ReviewDetail({
     if (res.ok) {
       setPosted(true)
       onPosted()
+    } else {
+      const body = await res.json().catch(() => ({}))
+      setApproveError(body.error ?? 'Failed to post reply. Check your Judge.me connection.')
     }
     setLoading(false)
   }
@@ -526,6 +531,12 @@ function ReviewDetail({
             </button>
           )}
         </div>
+      )}
+
+      {approveError && (
+        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-escalate)', marginTop: '8px' }}>
+          {approveError}
+        </p>
       )}
 
       {posted && (
