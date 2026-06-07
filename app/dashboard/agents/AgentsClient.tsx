@@ -84,6 +84,14 @@ function parseTrace(trace: unknown): Array<{ label: string; data: string; color:
           }
           break
         }
+        case 'brand_voice_rag': {
+          label = 'BRAND VOICE RAG'
+          const snippets = s.snippets as string[] | undefined
+          const count = (s.matched_count as number | undefined) ?? snippets?.length ?? 0
+          data = `${count} snippet${count !== 1 ? 's' : ''} matched`
+          color = 'var(--color-accent-dim)'
+          break
+        }
         case 'fetch_order_context':
           label = 'SHOPIFY MCP'
           data = s.found ? 'order context fetched' : 'no order found'

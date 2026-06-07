@@ -67,6 +67,8 @@ export type Database = {
           sample_replies: string[]
           rules: string[]
           tone_description: string | null
+          tone_positive: string | null
+          tone_negative: string | null
           updated_at: string
         }
         Insert: {
@@ -75,6 +77,8 @@ export type Database = {
           sample_replies?: string[]
           rules?: string[]
           tone_description?: string | null
+          tone_positive?: string | null
+          tone_negative?: string | null
           updated_at?: string
         }
         Update: {
@@ -83,6 +87,8 @@ export type Database = {
           sample_replies?: string[]
           rules?: string[]
           tone_description?: string | null
+          tone_positive?: string | null
+          tone_negative?: string | null
           updated_at?: string
         }
         Relationships: []

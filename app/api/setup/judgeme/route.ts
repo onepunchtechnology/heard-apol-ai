@@ -2,6 +2,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
+function extractReplyText(review: Record<string, unknown>): string | null {
+  // Try multiple possible field shapes defensively — Judge.me API shape not fully verified
+  const reply = review.curated_reply ?? review.reply ?? review.store_reply
+  if (!reply) return null
+  if (typeof reply === 'string' && reply.trim()) return reply.trim()
+  if (typeof reply === 'object' && reply !== null) {
+    const r = reply as Record<string, unknown>
+    const body = r.body ?? r.text ?? r.content
+    if (typeof body === 'string' && body.trim()) return body.trim()
+  }
+  return null
+}
+
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -28,5 +41,31 @@ export async function POST(request: NextRequest) {
     ...(judgeme_webhook_secret ? { judgeme_webhook_secret } : {}),
   }).eq('id', store.id)
 
-  return NextResponse.json({ ok: true })
+  // Import existing replied reviews for brand voice grounding — failure never blocks wizard
+  let imported_replies: string[] = []
+  let review_count = 0
+  let reply_count = 0
+  try {
+    const importRes = await fetch(
+      `https://judge.me/api/v1/reviews?api_token=${judgeme_api_token}&shop_domain=${store.store_domain}&per_page=100`,
+    )
+    if (importRes.ok) {
+      const importData = await importRes.json() as { reviews?: Record<string, unknown>[]; total?: number }
+      const reviews = importData.reviews ?? []
+      review_count = importData.total ?? reviews.length
+      for (const review of reviews) {
+        const replyText = extractReplyText(review)
+        if (replyText) {
+          imported_replies.push(replyText)
+          reply_count++
+        }
+      }
+      // Cap at 20 replies — enough for brand voice grounding, avoid bloating sample_replies
+      imported_replies = imported_replies.slice(0, 20)
+    }
+  } catch {
+    // Import failure is non-fatal — return empty arrays below
+  }
+
+  return NextResponse.json({ ok: true, imported_replies, review_count, reply_count })
 }

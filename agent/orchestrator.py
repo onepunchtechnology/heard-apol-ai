@@ -101,7 +101,15 @@ class Orchestrator:
         sentiment: str = classification.get("sentiment_label", "neutral")
         reasoning: str = classification.get("agent_reasoning", "")
 
-        # --- 5. Draft — DrafterAgent calls Shopify MCP for order context when needed ---
+        # --- 5. Brand Voice RAG — inject top-3 sample replies as grounding context ---
+        rag_snippets = (bv.get("sample_replies") or [])[:3] if bv else []
+        trace.append(_step(
+            "brand_voice_rag", "complete",
+            matched_count=len(rag_snippets),
+            snippets=[s[:60] for s in rag_snippets],
+        ))
+
+        # --- 6. Draft — DrafterAgent calls Shopify MCP for order context when needed ---
         try:
             draft_result = await self._drafter.draft(
                 review=row,

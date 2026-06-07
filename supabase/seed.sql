@@ -29,7 +29,7 @@ insert into stores (
 -- ============================================================
 -- Brand voice
 -- ============================================================
-insert into brand_voice_config (id, store_id, sample_replies, rules, tone_description, updated_at) values (
+insert into brand_voice_config (id, store_id, sample_replies, rules, tone_description, tone_positive, tone_negative, updated_at) values (
   'bbbbbbbb-0001-0000-0000-000000000000',
   'aaaaaaaa-0001-0000-0000-000000000000',
   array[
@@ -44,6 +44,8 @@ insert into brand_voice_config (id, store_id, sample_replies, rules, tone_descri
     'Match the energy of the review — don''t be overly cheerful for complaints'
   ],
   'Warm, playful, and passionate about anime culture. We''re fans ourselves — we speak to customers as fellow collectors, not as a faceless store. Occasional light Japanese words (arigatou, kawaii) are welcome but don''t overdo it.',
+  'enthusiastic',
+  'empathetic',
   now()
 ) on conflict (id) do nothing;
 
@@ -69,7 +71,7 @@ insert into review_actions (review_id, risk_score, sentiment_label, agent_reason
   'Hi Tyler — we are so sorry to hear your Rem figure arrived damaged. This is absolutely not the standard we hold ourselves to, and we want to make this right. Please email us at support@ohayopop.com with a photo and your order number and we will take care of you right away.',
   72,
   array['refund_offer_risk'],
-  '{"steps":[{"step":"claim","status":"complete"},{"step":"classify","status":"complete","result":{"risk_score":8,"sentiment_label":"negative","needs_order_context":true}},{"step":"fetch_order_context","status":"complete","found":true},{"step":"draft","status":"complete","confidence":72},{"step":"guardrails","status":"warning","passed":false,"fired_flags":["refund_offer_risk"]},{"step":"post","status":"skipped"}]}'::jsonb
+  '{"steps":[{"step":"claim","status":"complete"},{"step":"classify","status":"complete","result":{"risk_score":8,"sentiment_label":"negative","needs_order_context":true}},{"step":"brand_voice_rag","status":"complete","matched_count":2,"snippets":["Thank you so much for your kind words! It means the world","Hi there — we''re so sorry to hear your order didn''t arri"]},{"step":"fetch_order_context","status":"complete","found":true},{"step":"draft","status":"complete","confidence":72},{"step":"guardrails","status":"warning","passed":false,"fired_flags":["refund_offer_risk"]},{"step":"post","status":"skipped"}]}'::jsonb
 ) on conflict (review_id) do nothing;
 
 -- 2. Escalated: suspicious review (possible fake/competitor)
@@ -90,7 +92,7 @@ insert into review_actions (review_id, risk_score, sentiment_label, agent_reason
   'Thank you for taking the time to leave a review. We''re sorry the piece didn''t fully meet your expectations — we''re always looking for ways to improve. If you''d like to share more specific feedback, please reach out to us directly.',
   65,
   array[]::text[],
-  '{"steps":[{"step":"claim","status":"complete"},{"step":"classify","status":"complete","result":{"risk_score":5,"sentiment_label":"negative","needs_order_context":false}},{"step":"fetch_order_context","status":"skipped"},{"step":"draft","status":"complete","confidence":65},{"step":"guardrails","status":"complete","passed":true,"fired_flags":[]},{"step":"post","status":"skipped"}]}'::jsonb
+  '{"steps":[{"step":"claim","status":"complete"},{"step":"classify","status":"complete","result":{"risk_score":5,"sentiment_label":"negative","needs_order_context":false}},{"step":"brand_voice_rag","status":"complete","matched_count":2,"snippets":["Thank you so much for your kind words! It means the world","Hi there — we''re so sorry to hear your order didn''t arri"]},{"step":"fetch_order_context","status":"skipped"},{"step":"draft","status":"complete","confidence":65},{"step":"guardrails","status":"complete","passed":true,"fired_flags":[]},{"step":"post","status":"skipped"}]}'::jsonb
 ) on conflict (review_id) do nothing;
 
 -- 3. Auto-posted: happy 5-star
@@ -112,7 +114,7 @@ insert into review_actions (review_id, risk_score, sentiment_label, agent_reason
   'Arigatou, Mei! It makes us so happy to hear you''re loving the Miku figure — she really is stunning in person, isn''t she? Thank you for being such a wonderful part of the OhayoPop community. We can''t wait for you to see what''s coming next! 🌸',
   95,
   array[]::text[],
-  '{"steps":[{"step":"claim","status":"complete"},{"step":"classify","status":"complete","result":{"risk_score":1,"sentiment_label":"positive","needs_order_context":false}},{"step":"fetch_order_context","status":"skipped"},{"step":"draft","status":"complete","confidence":95},{"step":"guardrails","status":"complete","passed":true,"fired_flags":[]},{"step":"post","status":"complete","posted":true}]}'::jsonb
+  '{"steps":[{"step":"claim","status":"complete"},{"step":"classify","status":"complete","result":{"risk_score":1,"sentiment_label":"positive","needs_order_context":false}},{"step":"brand_voice_rag","status":"complete","matched_count":2,"snippets":["Thank you so much for your kind words! It means the world","Hi there — we''re so sorry to hear your order didn''t arri"]},{"step":"fetch_order_context","status":"skipped"},{"step":"draft","status":"complete","confidence":95},{"step":"guardrails","status":"complete","passed":true,"fired_flags":[]},{"step":"post","status":"complete","posted":true}]}'::jsonb
 ) on conflict (review_id) do nothing;
 
 -- 4. Auto-posted: 4-star
@@ -134,7 +136,7 @@ insert into review_actions (review_id, risk_score, sentiment_label, agent_reason
   'Thank you for the thoughtful review, Jordan! We''re so glad the Asuka figure impressed — those wing details are definitely one of our favorites. We''re sorry to hear about the loose accessory; we''re passing this along to our packing team. We hope she looks incredible on display! 🙌',
   88,
   array[]::text[],
-  '{"steps":[{"step":"claim","status":"complete"},{"step":"classify","status":"complete","result":{"risk_score":2,"sentiment_label":"positive","needs_order_context":false}},{"step":"fetch_order_context","status":"skipped"},{"step":"draft","status":"complete","confidence":88},{"step":"guardrails","status":"complete","passed":true,"fired_flags":[]},{"step":"post","status":"complete","posted":true}]}'::jsonb
+  '{"steps":[{"step":"claim","status":"complete"},{"step":"classify","status":"complete","result":{"risk_score":2,"sentiment_label":"positive","needs_order_context":false}},{"step":"brand_voice_rag","status":"complete","matched_count":2,"snippets":["Thank you so much for your kind words! It means the world","Hi there — we''re so sorry to hear your order didn''t arri"]},{"step":"fetch_order_context","status":"skipped"},{"step":"draft","status":"complete","confidence":88},{"step":"guardrails","status":"complete","passed":true,"fired_flags":[]},{"step":"post","status":"complete","posted":true}]}'::jsonb
 ) on conflict (review_id) do nothing;
 
 -- 5. Pending (unprocessed)

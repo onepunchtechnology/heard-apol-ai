@@ -48,11 +48,16 @@ class DrafterAgent:
     ) -> dict:
         brand_config = ""
         if brand_voice:
+            is_negative = classification.get("sentiment_label") == "negative"
+            tone = brand_voice.get(
+                "tone_negative" if is_negative else "tone_positive"
+            ) or brand_voice.get("tone_description") or "warm"
             brand_config = f"""
 Brand Voice Config:
-- Tone: {brand_voice.get('tone_description', 'friendly and professional')}
+- Tone: {tone} ({"complaints and negative reviews" if is_negative else "positive and neutral reviews"})
+- Description: {brand_voice.get('tone_description', '')}
 - Rules: {json.dumps(brand_voice.get('rules', []))}
-- Sample replies: {json.dumps(brand_voice.get('sample_replies', [])[:2])}
+- Sample replies (brand voice grounding): {json.dumps(brand_voice.get('sample_replies', [])[:3])}
 """
 
         prompt = f"""{brand_config}

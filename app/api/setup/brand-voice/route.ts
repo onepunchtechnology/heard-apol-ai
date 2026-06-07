@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { sample_replies, rules, tone_description } = await request.json()
+  const { sample_replies, rules, tone_description, tone_positive, tone_negative } = await request.json()
 
   const admin = createAdminClient()
   const { data: store } = await admin.from('stores').select('id').eq('user_id', user.id).maybeSingle()
@@ -19,6 +19,8 @@ export async function POST(request: NextRequest) {
       sample_replies: sample_replies ?? [],
       rules: rules ?? [],
       tone_description: tone_description ?? null,
+      tone_positive: tone_positive ?? null,
+      tone_negative: tone_negative ?? null,
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'store_id' },

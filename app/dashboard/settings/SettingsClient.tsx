@@ -15,7 +15,24 @@ interface BrandVoice {
   sample_replies: string[]
   rules: string[]
   tone_description: string | null
+  tone_positive: string | null
+  tone_negative: string | null
 }
+
+type TonePositive = 'warm' | 'enthusiastic' | 'polished'
+type ToneNegative = 'empathetic' | 'solution_focused' | 'measured'
+
+const POSITIVE_TONES: Array<{ id: TonePositive; label: string }> = [
+  { id: 'warm', label: 'Warm' },
+  { id: 'enthusiastic', label: 'Enthusiastic' },
+  { id: 'polished', label: 'Polished' },
+]
+
+const NEGATIVE_TONES: Array<{ id: ToneNegative; label: string }> = [
+  { id: 'empathetic', label: 'Empathetic' },
+  { id: 'solution_focused', label: 'Solution-Focused' },
+  { id: 'measured', label: 'Measured' },
+]
 
 const SAMPLE_REVIEWS = [
   { text: 'Paid $89 for this figure and it arrived with a snapped base. Completely unacceptable.', reviewer: 'Tyler B.' },
@@ -40,7 +57,12 @@ export default function SettingsClient({
 }) {
   // Brand voice state
   const [description, setDescription] = useState(brandVoice?.tone_description ?? '')
-  const [tone, setTone] = useState<'Friendly' | 'Professional' | 'Playful'>('Friendly')
+  const [tonePositive, setTonePositive] = useState<TonePositive>(
+    (brandVoice?.tone_positive as TonePositive | null) ?? 'warm'
+  )
+  const [toneNegative, setToneNegative] = useState<ToneNegative>(
+    (brandVoice?.tone_negative as ToneNegative | null) ?? 'empathetic'
+  )
   const [prohibitedPhrases, setProhibitedPhrases] = useState<string[]>(
     brandVoice?.rules ?? ['I apologize', 'Unfortunately'],
   )
@@ -106,7 +128,9 @@ export default function SettingsClient({
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        tone_description: `${tone}: ${description}`,
+        tone_description: description,
+        tone_positive: tonePositive,
+        tone_negative: toneNegative,
         rules: allRules,
         sample_replies: brandVoice?.sample_replies ?? [],
       }),
@@ -417,14 +441,14 @@ export default function SettingsClient({
           />
         </FieldGroup>
 
-        {/* Tone pills */}
-        <FieldGroup label="Tone">
+        {/* Tone for positive reviews */}
+        <FieldGroup label="Tone — positive reviews">
           <div className="flex gap-2">
-            {(['Friendly', 'Professional', 'Playful'] as const).map((t) => (
+            {POSITIVE_TONES.map((t) => (
               <button
-                key={t}
+                key={t.id}
                 type="button"
-                onClick={() => setTone(t)}
+                onClick={() => setTonePositive(t.id)}
                 style={{
                   height: '32px',
                   padding: '0 14px',
@@ -432,13 +456,40 @@ export default function SettingsClient({
                   fontSize: 'var(--text-sm)',
                   border: 'none',
                   cursor: 'pointer',
-                  backgroundColor: tone === t ? 'var(--color-accent)' : 'var(--color-surface)',
-                  color: tone === t ? 'var(--color-text)' : 'var(--color-muted)',
-                  fontWeight: tone === t ? 500 : 400,
+                  backgroundColor: tonePositive === t.id ? 'var(--color-accent)' : 'var(--color-surface)',
+                  color: tonePositive === t.id ? 'var(--color-text)' : 'var(--color-muted)',
+                  fontWeight: tonePositive === t.id ? 500 : 400,
                   transition: `background-color var(--duration-micro) var(--ease-out)`,
                 }}
               >
-                {t}
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </FieldGroup>
+
+        {/* Tone for negative reviews */}
+        <FieldGroup label="Tone — complaints &amp; negative reviews">
+          <div className="flex gap-2">
+            {NEGATIVE_TONES.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setToneNegative(t.id)}
+                style={{
+                  height: '32px',
+                  padding: '0 14px',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: 'var(--text-sm)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  backgroundColor: toneNegative === t.id ? 'var(--color-accent)' : 'var(--color-surface)',
+                  color: toneNegative === t.id ? 'var(--color-text)' : 'var(--color-muted)',
+                  fontWeight: toneNegative === t.id ? 500 : 400,
+                  transition: `background-color var(--duration-micro) var(--ease-out)`,
+                }}
+              >
+                {t.label}
               </button>
             ))}
           </div>
