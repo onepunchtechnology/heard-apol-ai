@@ -34,7 +34,13 @@ interface Review {
   received_at: string
   status: string
   product_title: string | null
-  review_actions: ReviewAction[]
+  review_actions: ReviewAction | ReviewAction[] | null
+}
+
+function getAction(review: Review): ReviewAction | undefined {
+  if (!review.review_actions) return undefined
+  if (Array.isArray(review.review_actions)) return review.review_actions[0]
+  return review.review_actions
 }
 
 const FILTERS = ['All', 'Escalated', 'Auto-replied'] as const
@@ -49,7 +55,7 @@ function filterReviews(reviews: Review[], filter: Filter): Review[] {
 }
 
 function reasonTag(review: Review): string {
-  const action = review.review_actions?.[0]
+  const action = getAction(review)
   if (!action) return ''
   if (action.risk_flags?.includes('refund_offer')) return 'Refund risk'
   if (action.risk_flags?.includes('competitor_mention')) return 'Competitor mention'
@@ -171,7 +177,7 @@ export default function ReviewsClient({ reviews }: { reviews: Review[] }) {
         {/* Review rows */}
         <div className="flex-1 overflow-y-auto">
           {filtered.map((review) => {
-            const action = review.review_actions?.[0]
+            const action = getAction(review)
             const effectiveStatus = locallyApprovedIds.has(review.id) ? 'approved' : review.status
             const isEscalated =
               effectiveStatus === 'needs_review' || effectiveStatus === 'reply_pending_manual'
@@ -295,7 +301,7 @@ function ReviewDetail({
   review: Review
   onPosted: () => void
 }) {
-  const action = review.review_actions?.[0]
+  const action = getAction(review)
   const [draft, setDraft] = useState(action?.draft_reply ?? '')
   const [loading, setLoading] = useState(false)
   const [posted, setPosted] = useState(

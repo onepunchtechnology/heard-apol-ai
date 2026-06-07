@@ -17,11 +17,15 @@ interface EscalatedReview {
   source: string
   received_at: string
   status: string
-  review_actions: Array<{
+  review_actions: {
     risk_score: number
     sentiment_label: string
     agent_reasoning: string
-  }>
+  } | {
+    risk_score: number
+    sentiment_label: string
+    agent_reasoning: string
+  }[] | null
 }
 
 interface ActivityClientProps {
@@ -121,7 +125,7 @@ export default function ActivityClient({ stats, recentEscalated, trend, storeCou
         ) : (
           <div>
             {recentEscalated.map((review, idx) => {
-              const action = review.review_actions?.[0]
+              const action = Array.isArray(review.review_actions) ? review.review_actions[0] : review.review_actions
               const isLast = idx === recentEscalated.length - 1
               const reasonTag =
                 action?.sentiment_label === 'negative'

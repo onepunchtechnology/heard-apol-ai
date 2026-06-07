@@ -35,7 +35,13 @@ interface Review {
   received_at: string
   status: string
   product_title: string | null
-  review_actions: ReviewAction[]
+  review_actions: ReviewAction | ReviewAction[] | null
+}
+
+function getAction(review: Review): ReviewAction | undefined {
+  if (!review.review_actions) return undefined
+  if (Array.isArray(review.review_actions)) return review.review_actions[0]
+  return review.review_actions
 }
 
 type FilterTab = 'All' | 'Auto-posted' | 'Escalated' | 'Blocked'
@@ -43,10 +49,11 @@ const FILTERS: FilterTab[] = ['All', 'Auto-posted', 'Escalated', 'Blocked']
 
 function matchesFilter(review: Review, filter: FilterTab): boolean {
   if (filter === 'All') return true
-  if (filter === 'Auto-posted') return review.status === 'auto_posted' || review.review_actions?.[0]?.decision === 'auto_post'
-  if (filter === 'Escalated') return review.status === 'needs_review' || review.review_actions?.[0]?.decision === 'escalate'
+  const action = getAction(review)
+  if (filter === 'Auto-posted') return review.status === 'auto_posted' || action?.decision === 'auto_post'
+  if (filter === 'Escalated') return review.status === 'needs_review' || action?.decision === 'escalate'
   if (filter === 'Blocked') {
-    const flags = (review.review_actions?.[0]?.agent_trace as { steps?: Array<{ step: string; passed?: boolean; fired_flags?: string[] }> })?.steps ?? []
+    const flags = (action?.agent_trace as { steps?: Array<{ step: string; passed?: boolean; fired_flags?: string[] }> })?.steps ?? []
     return flags.some((s) => s.step === 'guardrails' && s.passed === false)
   }
   return true
@@ -215,7 +222,7 @@ export default function AgentsClient({
       ) : (
         <div style={{ borderTop: '1px solid var(--color-border)' }}>
           {filtered.map((review) => {
-            const action = review.review_actions?.[0]
+            const action = getAction(review)
             const isExpanded = expandedId === review.id
             const isAutoPosted = review.status === 'auto_posted' || action?.decision === 'auto_post'
             const isEscalated = review.status === 'needs_review' || action?.decision === 'escalate'
