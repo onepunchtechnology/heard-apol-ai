@@ -15,6 +15,10 @@ AUTO_POST_MAX_RISK = 3
 JUDGEME_API_BASE = "https://judge.me/api/v1"
 
 
+def should_auto_post(risk_score: int, guardrails_passed: bool) -> bool:
+    return risk_score <= AUTO_POST_MAX_RISK and guardrails_passed
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -78,7 +82,7 @@ class Orchestrator:
             self._db.table("brand_voice_config")
             .select("*")
             .eq("store_id", row["store_id"])
-            .maybeSingle()
+            .maybe_single()
             .execute()
         ).data
 
@@ -93,7 +97,7 @@ class Orchestrator:
             trace.append(_step("classify", "complete", result=classification))
         except Exception as exc:
             trace.append(_step("classify", "failed", error=str(exc)))
-            self._save_action(review_id, 9, "unknown", str(exc), None, 0, None, [], {"steps": trace})
+            self._save_action(review_id, 9, "neutral", str(exc), None, 0, None, [], {"steps": trace})
             self._set_status(review_id, "needs_review")
             return
 
@@ -146,7 +150,7 @@ class Orchestrator:
         )
 
         # --- 9. Auto-post or escalate ---
-        auto_post = risk_score <= AUTO_POST_MAX_RISK and gr.passed
+        auto_post = should_auto_post(risk_score, gr.passed)
         if auto_post:
             await self._auto_post(review_id, row, store, draft_reply, trace)
         else:

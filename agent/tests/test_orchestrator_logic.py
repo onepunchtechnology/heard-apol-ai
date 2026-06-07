@@ -1,3 +1,4 @@
+import ast
 import sys
 import os
 import re
@@ -10,6 +11,30 @@ AGENT_DIR = Path(__file__).resolve().parents[1]
 ORCHESTRATOR = (AGENT_DIR / 'orchestrator.py').read_text()
 
 
+def _load_should_auto_post():
+    """Extract and exec only AUTO_POST_MAX_RISK + should_auto_post from source.
+
+    orchestrator.py reads env vars at module level, preventing a plain import.
+    AST extraction sidesteps all I/O and external imports.
+    """
+    tree = ast.parse(ORCHESTRATOR)
+    selected = []
+    for node in tree.body:
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id == 'AUTO_POST_MAX_RISK':
+                    selected.append(node)
+        elif isinstance(node, ast.FunctionDef) and node.name == 'should_auto_post':
+            selected.append(node)
+    mod = ast.Module(body=selected, type_ignores=[])
+    ns: dict = {}
+    exec(compile(mod, '<orchestrator-subset>', 'exec'), ns)  # noqa: S102
+    return ns['should_auto_post']
+
+
+_should_auto_post = _load_should_auto_post()
+
+
 class TestAutoPostThreshold(unittest.TestCase):
     """AUTO_POST_MAX_RISK must stay 3 per CLAUDE.md spec:
     'risk_score 0–3 AND guardrails pass → auto_post'"""
@@ -19,10 +44,10 @@ class TestAutoPostThreshold(unittest.TestCase):
         self.assertIsNotNone(match, 'AUTO_POST_MAX_RISK constant must exist in orchestrator.py')
         self.assertEqual('3', match.group(1), 'AUTO_POST_MAX_RISK must be 3 per spec')
 
-    def test_auto_post_uses_constant_not_literal(self):
-        # Guard against someone inlining the threshold and forgetting the constant
-        self.assertIn('AUTO_POST_MAX_RISK', ORCHESTRATOR)
-        self.assertIn('risk_score <= AUTO_POST_MAX_RISK', ORCHESTRATOR)
+    def test_auto_post_uses_should_auto_post(self):
+        # Decision must go through should_auto_post(), not an inlined comparison
+        self.assertIn('should_auto_post(risk_score', ORCHESTRATOR,
+                      'process_review must delegate the auto-post decision to should_auto_post()')
 
 
 class TestAtomicClaim(unittest.TestCase):
@@ -74,6 +99,42 @@ class TestTwoToneBrandVoice(unittest.TestCase):
     def test_orchestrator_passes_brand_voice_to_drafter(self):
         self.assertIn('brand_voice=bv', ORCHESTRATOR,
                       'Orchestrator must pass full brand_voice dict to drafter')
+
+
+class TestShouldAutoPost(unittest.TestCase):
+    """Behavioral four-corner tests for the auto-post/escalate decision boundary.
+
+    Spec (CLAUDE.md): risk_score 0–3 AND guardrails pass → auto_post
+                      risk_score ≥ 4 OR any guardrail fired → escalate
+    """
+
+    def test_boundary_risk3_guardrails_pass(self):
+        """risk=3 is the highest score that should auto-post."""
+        self.assertTrue(_should_auto_post(3, True),
+                        'risk_score=3 with guardrails passing must auto-post (boundary)')
+
+    def test_boundary_risk4_guardrails_pass(self):
+        """risk=4 must escalate even when guardrails are clean."""
+        self.assertFalse(_should_auto_post(4, True),
+                         'risk_score=4 with guardrails passing must escalate (boundary)')
+
+    def test_guardrail_veto_low_risk(self):
+        """A guardrail firing must escalate even when risk_score is 0."""
+        self.assertFalse(_should_auto_post(0, False),
+                         'risk_score=0 with a guardrail fired must escalate')
+
+    def test_guardrail_veto_at_risk_boundary(self):
+        """A guardrail firing must escalate even at the exact risk threshold."""
+        self.assertFalse(_should_auto_post(3, False),
+                         'risk_score=3 with a guardrail fired must still escalate')
+
+    def test_mid_range_clean(self):
+        """risk=2 with clean guardrails is safely within the auto-post zone."""
+        self.assertTrue(_should_auto_post(2, True))
+
+    def test_high_risk_guardrail_veto(self):
+        """High risk + guardrail failure: double-escalation path must still be False."""
+        self.assertFalse(_should_auto_post(9, False))
 
 
 class TestStepHelper(unittest.TestCase):
