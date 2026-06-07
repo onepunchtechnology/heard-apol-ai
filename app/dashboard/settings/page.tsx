@@ -11,7 +11,7 @@ export default async function SettingsPage() {
 
   const { data: storeData } = await supabase
     .from('stores')
-    .select('id, store_name, store_domain, google_connection_mode, google_location_name, judgeme_api_token')
+    .select('id, store_name, store_domain, google_connection_mode, google_location_name, judgeme_api_token, reply_mode')
     .eq('user_id', user!.id)
     .maybeSingle()
 

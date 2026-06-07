@@ -22,6 +22,7 @@ interface ReviewAction {
   order_context: OrderContext | null
   agent_trace: unknown
   confidence?: number
+  decision?: 'auto_post' | 'escalate' | null
 }
 
 interface Review {
@@ -65,7 +66,7 @@ function reasonTag(review: Review): string {
   return 'Order issue'
 }
 
-export default function ReviewsClient({ reviews }: { reviews: Review[] }) {
+export default function ReviewsClient({ reviews, replyMode }: { reviews: Review[]; replyMode: 'auto_post' | 'manual_approval' }) {
   const [filter, setFilter] = useState<Filter>('All')
   const [selectedId, setSelectedId] = useState<string | null>(
     reviews.find((r) => r.status === 'needs_review')?.id ?? null,
@@ -174,6 +175,24 @@ export default function ReviewsClient({ reviews }: { reviews: Review[] }) {
           </div>
         </div>
 
+        {/* Reply mode note */}
+        <div
+          className="flex items-center justify-between px-5 py-2"
+          style={{ borderBottom: '1px solid var(--color-border)', backgroundColor: 'var(--color-surface)' }}
+        >
+          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)' }}>
+            {replyMode === 'manual_approval'
+              ? 'Manual Approval — every draft requires your approval'
+              : 'Auto-Post — low-risk replies post automatically'}
+          </span>
+          <a
+            href="/dashboard/settings"
+            style={{ fontSize: 'var(--text-xs)', color: 'var(--color-accent-dim)', textDecoration: 'none', flexShrink: 0, marginLeft: '8px' }}
+          >
+            Change in Settings →
+          </a>
+        </div>
+
         {/* Review rows */}
         <div className="flex-1 overflow-y-auto">
           {filtered.map((review) => {
@@ -243,8 +262,8 @@ export default function ReviewsClient({ reviews }: { reviews: Review[] }) {
                 </p>
                 {/* Line 3: status badge + reason tag */}
                 <div className="flex items-center gap-2">
-                  <StatusBadge status={justPosted ? 'approved' : effectiveStatus} />
-                  {action && isEscalated && (
+                  <StatusBadge status={justPosted ? 'approved' : effectiveStatus} decision={action?.decision} />
+                  {action && isEscalated && action?.decision !== 'auto_post' && (
                     <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)' }}>
                       {reasonTag(review)}
                     </span>
@@ -356,7 +375,7 @@ function ReviewDetail({
       <div className="flex items-center gap-3 mb-4">
         <StarRating rating={review.rating} />
         <PlatformBadge source={review.source} />
-        <StatusBadge status={review.status} />
+        <StatusBadge status={review.status} decision={action?.decision} />
         <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', marginLeft: 'auto' }}>
           {formatDistanceToNow(review.received_at)} ago
         </span>
@@ -644,10 +663,16 @@ function PlatformBadge({ source }: { source: string }) {
   )
 }
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({ status, decision }: { status: string; decision?: 'auto_post' | 'escalate' | null }) {
+  const isManualHold = (status === 'needs_review' || status === 'reply_pending_manual') && decision === 'auto_post'
+
   const map: Record<string, { bg: string; color: string; label: string }> = {
-    needs_review: { bg: 'var(--color-escalate-bg)', color: 'var(--color-escalate)', label: 'escalated' },
-    reply_pending_manual: { bg: 'var(--color-warning-bg)', color: 'var(--color-warning)', label: 'manual post' },
+    needs_review: isManualHold
+      ? { bg: 'var(--color-surface-2)', color: 'var(--color-muted)', label: 'awaiting approval' }
+      : { bg: 'var(--color-escalate-bg)', color: 'var(--color-escalate)', label: 'escalated' },
+    reply_pending_manual: isManualHold
+      ? { bg: 'var(--color-surface-2)', color: 'var(--color-muted)', label: 'awaiting approval' }
+      : { bg: 'var(--color-warning-bg)', color: 'var(--color-warning)', label: 'manual post' },
     auto_posted: { bg: 'var(--color-success-bg)', color: 'var(--color-success)', label: 'auto-replied' },
     approved: { bg: 'var(--color-success-bg)', color: 'var(--color-success)', label: 'posted' },
     pending: { bg: 'var(--color-surface)', color: 'var(--color-muted)', label: 'pending' },

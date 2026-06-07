@@ -388,16 +388,16 @@ function SetupContent() {
           Heard is listening.
         </p>
         <p style={{ fontFamily: 'Epilogue', fontSize: '16px', color: 'var(--color-muted)', maxWidth: '270px', lineHeight: 1.6, margin: '0 0 32px' }}>
-          Your first review will be auto-replied within minutes.
+          Your first review will be drafted within minutes — ready for your approval.
         </p>
         <div style={{ backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', padding: '20px', display: 'flex', gap: '24px', marginBottom: '24px' }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontFamily: '"Instrument Serif"', fontStyle: 'italic', fontSize: '28px', color: 'var(--color-success)', lineHeight: 1 }}>0</div>
-            <div style={{ fontFamily: 'Epilogue', fontSize: '11px', color: 'var(--color-muted)', marginTop: '4px' }}>auto-replied</div>
-          </div>
-          <div style={{ textAlign: 'center' }}>
             <div style={{ fontFamily: '"Instrument Serif"', fontStyle: 'italic', fontSize: '28px', color: 'var(--color-accent-dim)', lineHeight: 1 }}>0</div>
             <div style={{ fontFamily: 'Epilogue', fontSize: '11px', color: 'var(--color-muted)', marginTop: '4px' }}>drafts</div>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontFamily: '"Instrument Serif"', fontStyle: 'italic', fontSize: '28px', color: 'var(--color-success)', lineHeight: 1 }}>0</div>
+            <div style={{ fontFamily: 'Epilogue', fontSize: '11px', color: 'var(--color-muted)', marginTop: '4px' }}>posted</div>
           </div>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontFamily: '"Instrument Serif"', fontStyle: 'italic', fontSize: '28px', color: 'var(--color-muted)', lineHeight: 1 }}>0</div>
@@ -564,18 +564,35 @@ function SetupContent() {
         <h1 style={{ fontFamily: 'Epilogue', fontWeight: 500, fontSize: '28px', color: 'var(--color-text)', margin: '0 0 12px' }}>
           You&apos;re all set.
         </h1>
-        <p style={{ fontFamily: 'Epilogue', fontSize: '15px', color: 'var(--color-muted)', maxWidth: '380px', lineHeight: 1.6, margin: '0 0 32px' }}>
+        <p style={{ fontFamily: 'Epilogue', fontSize: '15px', color: 'var(--color-muted)', maxWidth: '380px', lineHeight: 1.6, margin: '0 0 24px' }}>
           {storeConnected
-            ? 'Heard is now monitoring your store reviews and will reply automatically. Check the Activity screen for live updates.'
+            ? 'Heard is monitoring your store reviews and will draft replies for your approval. Check the Reviews screen to approve and post.'
             : 'No store connected yet. Visit Settings to connect your store and activate review monitoring.'}
         </p>
+        {storeConnected && (
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '14px 16px', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-md)', marginBottom: '24px', maxWidth: '400px', width: '100%' }}>
+            <div style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: 'var(--color-accent-dim)', marginTop: '5px', flexShrink: 0 }} />
+            <div>
+              <p style={{ fontFamily: 'Epilogue', fontWeight: 500, fontSize: '13px', color: 'var(--color-text)', margin: '0 0 2px' }}>
+                Starting in Manual Approval mode
+              </p>
+              <p style={{ fontFamily: 'Epilogue', fontSize: '12px', color: 'var(--color-muted)', margin: 0, lineHeight: 1.5 }}>
+                Nothing posts automatically — every draft waits for you. Switch to Auto-Post anytime in{' '}
+                <a href="/dashboard/settings" style={{ color: 'var(--color-accent-dim)', textDecoration: 'none' }}>
+                  Settings
+                </a>
+                {' '}when you&apos;re ready.
+              </p>
+            </div>
+          </div>
+        )}
         <div style={{ display: 'flex', gap: '12px', marginBottom: '32px', width: '100%', justifyContent: 'center' }}>
           <div style={{ flex: 1, maxWidth: '180px', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', padding: '16px' }}>
-            <div style={{ fontFamily: 'Epilogue', fontWeight: 500, fontSize: '13px', color: 'var(--color-success)', marginBottom: '4px' }}>Auto-reply</div>
-            <div style={{ fontFamily: 'Epilogue', fontSize: '12px', color: 'var(--color-success)' }}>On</div>
+            <div style={{ fontFamily: 'Epilogue', fontWeight: 500, fontSize: '13px', color: 'var(--color-accent-dim)', marginBottom: '4px' }}>Reply mode</div>
+            <div style={{ fontFamily: 'Epilogue', fontSize: '12px', color: 'var(--color-muted)' }}>Manual Approval</div>
           </div>
           <div style={{ flex: 1, maxWidth: '180px', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', padding: '16px' }}>
-            <div style={{ fontFamily: 'Epilogue', fontWeight: 500, fontSize: '13px', color: 'var(--color-escalate)', marginBottom: '4px' }}>Human review</div>
+            <div style={{ fontFamily: 'Epilogue', fontWeight: 500, fontSize: '13px', color: 'var(--color-escalate)', marginBottom: '4px' }}>Escalations</div>
             <div style={{ fontFamily: 'Epilogue', fontSize: '12px', color: 'var(--color-escalate)' }}>Risk ≥ 4</div>
           </div>
         </div>

@@ -21,6 +21,7 @@ export type Database = {
           google_oauth_tokens: Json | null
           google_location_name: string | null
           google_connection_mode: 'api' | 'manual_paste' | null
+          reply_mode: 'auto_post' | 'manual_approval'
           created_at: string
         }
         Insert: {
@@ -40,6 +41,7 @@ export type Database = {
           google_oauth_tokens?: Json | null
           google_location_name?: string | null
           google_connection_mode?: 'api' | 'manual_paste' | null
+          reply_mode?: 'auto_post' | 'manual_approval'
           created_at?: string
         }
         Update: {
@@ -59,6 +61,7 @@ export type Database = {
           google_oauth_tokens?: Json | null
           google_location_name?: string | null
           google_connection_mode?: 'api' | 'manual_paste' | null
+          reply_mode?: 'auto_post' | 'manual_approval'
           created_at?: string
         }
         Relationships: []

@@ -8,6 +8,7 @@ interface Store {
   store_name: string | null
   google_connection_mode: string | null
   google_location_name: string | null
+  reply_mode: 'auto_post' | 'manual_approval'
 }
 
 interface BrandVoice {
@@ -55,6 +56,28 @@ export default function SettingsClient({
   brandVoice: BrandVoice | null
   judgemeConnected: boolean
 }) {
+  // Reply mode state
+  const [replyMode, setReplyMode] = useState<'auto_post' | 'manual_approval'>(
+    store?.reply_mode ?? 'manual_approval'
+  )
+  const [replyModeSaving, setReplyModeSaving] = useState(false)
+  const [replyModeSaved, setReplyModeSaved] = useState(false)
+
+  async function handleReplyModeChange(mode: 'auto_post' | 'manual_approval') {
+    if (mode === replyMode) return
+    setReplyMode(mode)
+    setReplyModeSaving(true)
+    setReplyModeSaved(false)
+    await fetch('/api/settings/reply-mode', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reply_mode: mode }),
+    })
+    setReplyModeSaving(false)
+    setReplyModeSaved(true)
+    setTimeout(() => setReplyModeSaved(false), 2000)
+  }
+
   // Brand voice state
   const [description, setDescription] = useState(brandVoice?.tone_description ?? '')
   const [tonePositive, setTonePositive] = useState<TonePositive>(
@@ -152,6 +175,87 @@ export default function SettingsClient({
       >
         Settings
       </h1>
+
+      {/* ── Section 0: Reply Mode ── */}
+      <div
+        style={{
+          backgroundColor: 'var(--color-bg)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-md)',
+          padding: '24px',
+          marginBottom: '32px',
+        }}
+      >
+        <h2
+          style={{
+            fontSize: 'var(--text-lg)',
+            fontWeight: 500,
+            color: 'var(--color-text)',
+            marginBottom: '4px',
+          }}
+        >
+          Reply Mode
+        </h2>
+        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-muted)', margin: '0 0 16px' }}>
+          Controls whether Heard posts replies automatically or holds every draft for your approval.
+        </p>
+        <div style={{ height: '1px', backgroundColor: 'var(--color-border)', marginBottom: '24px' }} />
+
+        <div className="flex gap-2" style={{ marginBottom: '12px' }}>
+          <button
+            type="button"
+            onClick={() => handleReplyModeChange('manual_approval')}
+            style={{
+              height: '40px',
+              padding: '0 18px',
+              borderRadius: 'var(--radius-md)',
+              fontSize: 'var(--text-sm)',
+              fontWeight: replyMode === 'manual_approval' ? 500 : 400,
+              border: replyMode === 'manual_approval' ? '2px solid var(--color-accent)' : '1px solid var(--color-border)',
+              backgroundColor: replyMode === 'manual_approval' ? 'var(--color-surface)' : 'var(--color-bg)',
+              color: 'var(--color-text)',
+              cursor: 'pointer',
+              transition: `border-color var(--duration-short) var(--ease-out), background-color var(--duration-short) var(--ease-out)`,
+            }}
+          >
+            Manual Approval
+          </button>
+          <button
+            type="button"
+            onClick={() => handleReplyModeChange('auto_post')}
+            style={{
+              height: '40px',
+              padding: '0 18px',
+              borderRadius: 'var(--radius-md)',
+              fontSize: 'var(--text-sm)',
+              fontWeight: replyMode === 'auto_post' ? 500 : 400,
+              border: replyMode === 'auto_post' ? '2px solid var(--color-accent)' : '1px solid var(--color-border)',
+              backgroundColor: replyMode === 'auto_post' ? 'var(--color-surface)' : 'var(--color-bg)',
+              color: 'var(--color-text)',
+              cursor: 'pointer',
+              transition: `border-color var(--duration-short) var(--ease-out), background-color var(--duration-short) var(--ease-out)`,
+            }}
+          >
+            Auto-Post
+          </button>
+          {replyModeSaving && (
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', alignSelf: 'center' }}>
+              Saving…
+            </span>
+          )}
+          {replyModeSaved && (
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-success)', alignSelf: 'center' }}>
+              Saved ✓
+            </span>
+          )}
+        </div>
+
+        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', margin: 0 }}>
+          {replyMode === 'manual_approval'
+            ? 'Heard drafts every reply and waits for your approval before posting. Nothing is sent automatically.'
+            : 'Heard posts replies automatically when risk is low. High-risk reviews are always held for your review.'}
+        </p>
+      </div>
 
       {/* ── Section 1: Store Connections ── */}
       <div

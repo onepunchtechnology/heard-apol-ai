@@ -67,7 +67,7 @@ class Orchestrator:
         # --- 2. Load review + store credentials ---
         row = (
             self._db.table("reviews")
-            .select("*, stores(shopify_domain, platform_access_token, judgeme_api_token)")
+            .select("*, stores(shopify_domain, platform_access_token, judgeme_api_token, reply_mode)")
             .eq("id", review_id)
             .single()
             .execute()
@@ -150,8 +150,17 @@ class Orchestrator:
         )
 
         # --- 9. Auto-post or escalate ---
-        auto_post = should_auto_post(risk_score, gr.passed)
-        if auto_post:
+        reply_mode: str = store.get("reply_mode") or "manual_approval"
+        would_auto_post = should_auto_post(risk_score, gr.passed)
+        decision = "auto_post" if would_auto_post else "escalate"
+        self._write_decision(review_id, decision)
+
+        if reply_mode == "manual_approval":
+            # Always hold for human review — route by source so the UI shows the right action
+            target_status = "needs_review" if row.get("source") == "judgeme" else "reply_pending_manual"
+            self._set_status(review_id, target_status)
+            print(f"[{review_id}] manual_approval mode → {target_status}")
+        elif would_auto_post:
             await self._auto_post(review_id, row, store, draft_reply, trace)
         else:
             self._set_status(review_id, "needs_review")
@@ -190,6 +199,9 @@ class Orchestrator:
 
     def _set_status(self, review_id: str, status: str) -> None:
         self._db.table("reviews").update({"status": status, "updated_at": _now()}).eq("id", review_id).execute()
+
+    def _write_decision(self, review_id: str, decision: str) -> None:
+        self._db.table("review_actions").update({"decision": decision}).eq("review_id", review_id).execute()
 
     def _save_action(
         self,
