@@ -115,12 +115,18 @@ If needs_order_context is true, call fetch_order_context before drafting. Then o
             agent=agent,
             session_service=InMemorySessionService(),
         )
+        session_id = f"draft_{uuid.uuid4().hex}"
+        await runner.session_service.create_session(
+            app_name="heard_drafter",
+            user_id="orchestrator",
+            session_id=session_id,
+        )
 
         response_text = ""
         try:
             async for event in runner.run_async(
                 user_id="orchestrator",
-                session_id=f"draft_{uuid.uuid4().hex}",
+                session_id=session_id,
                 new_message=message,
             ):
                 if event.content and event.content.parts:

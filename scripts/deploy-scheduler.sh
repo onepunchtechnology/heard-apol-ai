@@ -23,8 +23,7 @@ RUN_URI="https://run.googleapis.com/v2/projects/${PROJECT}/locations/${REGION}/j
 SWEEP_JOB=heard-agent-sweep-2h
 RECOVERY_JOB=heard-agent-nightly-recovery
 
-SWEEP_BODY='{"overrides":{"containerOverrides":[{"env":[{"name":"MODE","value":"sweep"}]}]}}'
-RECOVERY_BODY='{"overrides":{"containerOverrides":[{"env":[{"name":"MODE","value":"sweep"}]}]}}'
+RUN_BODY='{}'
 
 # ── helpers ────────────────────────────────────────────────────────────────────
 
@@ -47,7 +46,7 @@ create_or_update() {
       --uri "${RUN_URI}" \
       --http-method POST \
       --oauth-service-account-email "${SA}" \
-      --headers "Content-Type=application/json" \
+      --update-headers "Content-Type=application/json" \
       --message-body "${body}" \
       --project "${PROJECT}"
   else
@@ -70,11 +69,13 @@ create_or_update() {
 case "${1:-deploy}" in
 
   deploy)
-    # Every 2 hours — main sweep
-    create_or_update "${SWEEP_JOB}" "0 */2 * * *" "${SWEEP_BODY}"
+    # Every 12 hours — main sweep while demo traffic is low.
+    # Keep the existing job name so rerunning this script updates the old 2h job
+    # instead of accidentally leaving two active sweep schedules.
+    create_or_update "${SWEEP_JOB}" "0 */12 * * *" "${RUN_BODY}"
 
     # Nightly 2 AM CT — recovery sweep for anything that stalled
-    create_or_update "${RECOVERY_JOB}" "0 2 * * *" "${RECOVERY_BODY}"
+    create_or_update "${RECOVERY_JOB}" "0 2 * * *" "${RUN_BODY}"
 
     echo ""
     echo "Verifying jobs are in the expected state..."

@@ -41,11 +41,17 @@ class ClassifierAgent:
     async def classify(self, reviewer_name: str, rating: int, body: str, source: str) -> dict:
         prompt = f"Source: {source}\nReviewer: {reviewer_name}\nRating: {rating}/5\n\nReview:\n{body}"
         message = types.Content(role="user", parts=[types.Part(text=prompt)])
+        session_id = f"classify_{uuid.uuid4().hex}"
+        await self._runner.session_service.create_session(
+            app_name="heard_classifier",
+            user_id="orchestrator",
+            session_id=session_id,
+        )
 
         response_text = ""
         async for event in self._runner.run_async(
             user_id="orchestrator",
-            session_id=f"classify_{uuid.uuid4().hex}",
+            session_id=session_id,
             new_message=message,
         ):
             if event.content and event.content.parts:
