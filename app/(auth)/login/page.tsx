@@ -33,6 +33,22 @@ export default function LoginPage() {
   async function handleEmailSubmit(e: React.FormEvent) {
     e.preventDefault()
     setEmailState('loading')
+
+    // Ask the server whether this email triggers a demo shortcut.
+    // The server checks against DEMO_ACCOUNT_EMAIL (never exposed to the client).
+    const check = await fetch('/api/auth/email-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim() }),
+    })
+    const { demo, url } = await check.json() as { demo: boolean; url?: string }
+
+    if (demo && url) {
+      window.location.href = url
+      return
+    }
+
+    // Normal magic link flow
     const supabase = createClient()
     await supabase.auth.signInWithOtp({
       email,
@@ -137,7 +153,7 @@ export default function LoginPage() {
                 disabled={emailState === 'loading'}
                 style={{ height: '40px', padding: '0 20px', backgroundColor: 'var(--color-accent)', border: 'none', borderRadius: 'var(--radius-md)', fontFamily: 'Epilogue', fontWeight: 500, fontSize: '13px', color: 'var(--color-text)', cursor: emailState === 'loading' ? 'not-allowed' : 'pointer', opacity: emailState === 'loading' ? 0.6 : 1 }}
               >
-                {emailState === 'loading' ? 'Sending...' : 'Send magic link'}
+                {emailState === 'loading' ? 'Signing in...' : 'Send magic link'}
               </button>
               <button
                 type="button"
