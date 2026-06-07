@@ -642,10 +642,7 @@ export default function SettingsClient({
               Draft reply
             </p>
             <p style={{ fontSize: '14px', color: 'var(--color-text)', margin: 0, lineHeight: 1.6 }}>
-              {brandVoice?.sample_replies?.[previewIdx] ?? SAMPLE_REPLIES[previewIdx]}
-            </p>
-            <p style={{ fontSize: '11px', color: 'var(--color-muted)', marginTop: '6px', marginBottom: 0 }}>
-              Powered by Gemini 2.5 Flash
+              {SAMPLE_REPLIES[previewIdx]}
             </p>
           </div>
         </div>
