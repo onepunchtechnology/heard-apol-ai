@@ -47,13 +47,16 @@ export async function POST(
   let postError: string | null = null
 
   if (review.source === 'judgeme' && store.judgeme_api_token) {
-    const res = await fetch(`https://judge.me/api/v1/reviews/${review.external_id}/reply`, {
+    const replyUrl = `https://api.judge.me/api/v1/replies?shop_domain=${encodeURIComponent(store.shopify_domain ?? '')}`
+    const res = await fetch(replyUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Api-Token': store.judgeme_api_token,
+      },
       body: JSON.stringify({
-        store_domain: store.shopify_domain,
-        api_token: store.judgeme_api_token,
-        reply: { body: reply },
+        review_id: Number(review.external_id),
+        reply: { content: reply },
       }),
     })
     posted = res.ok
