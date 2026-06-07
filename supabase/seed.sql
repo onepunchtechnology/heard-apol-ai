@@ -1,9 +1,13 @@
--- OhayoPop demo seed data
+-- Heard demo seed data — Hackathon judge account
+-- Store: fictional anime figure shop (brand voice showcase)
+-- User: google-hackathon-demo-9c25d0@apol.ai (UUID: dff66364-e9f1-49cb-980c-f78b6cccb91a)
+-- NO live credentials — platform_access_token and all API tokens are intentionally null
+--
 -- Run AFTER supabase db push (schema must exist first)
--- Uses a placeholder user_id — replace with actual auth.users UUID when seeding live
+-- Usage: supabase db query --linked --file supabase/seed.sql
 
 -- ============================================================
--- Demo store (OhayoPop)
+-- Demo store
 -- ============================================================
 insert into stores (
   id, user_id,
@@ -14,14 +18,14 @@ insert into stores (
   created_at
 ) values (
   'aaaaaaaa-0001-0000-0000-000000000000',
-  '1c5f57f9-c036-49cb-9294-7218e656d942', -- replace with real user ID (done)
-  'ohayopop.com',                          -- public-facing store domain
-  '263c83-3.myshopify.com',               -- Shopify internal domain (used by Shopify Admin API + Judge.me); see DEPLOYMENT.md step 2.8
-  'OhayoPop',
+  'dff66364-e9f1-49cb-980c-f78b6cccb91a',
+  'demo.heard.apol.ai',
+  null,                    -- no real Shopify store; order context fetch is skipped
+  'Heard Demo Store',
   'shopify',
-  'demo_shopify_token',
-  'demo_judgeme_token',
-  'demo_webhook_secret',
+  null,                    -- no live credentials — agent cannot post to any real platform
+  null,
+  null,
   'manual_paste',
   null,
   now()
@@ -35,7 +39,7 @@ insert into brand_voice_config (id, store_id, sample_replies, rules, tone_descri
   'aaaaaaaa-0001-0000-0000-000000000000',
   array[
     'Thank you so much for your kind words! It means the world to us that you''re loving your new piece. We put so much love into every order and it''s incredibly rewarding to hear it landed perfectly. We hope to see you again soon! 🌸',
-    'Hi there — we''re so sorry to hear your order didn''t arrive as expected. This isn''t the experience we want for any of our customers. Please reach out to us directly at support@ohayopop.com and we''ll make it right as quickly as possible.'
+    'Hi there — we''re so sorry to hear your order didn''t arrive as expected. This isn''t the experience we want for any of our customers. Please reach out to us directly at support@heardstore.demo and we''ll make it right as quickly as possible.'
   ],
   array[
     'Never promise refunds or replacements publicly',
@@ -69,7 +73,7 @@ insert into review_actions (review_id, risk_score, sentiment_label, agent_reason
   'cccccccc-0001-0000-0000-000000000000',
   8, 'negative',
   'High-value ($89) item arrived damaged. Customer explicitly demands a refund. Risk 8: explicit refund demand + product defect claim. Guardrail would flag any refund promise. Escalating to human review.',
-  'Hi Tyler — we are so sorry to hear your Rem figure arrived damaged. This is absolutely not the standard we hold ourselves to, and we want to make this right. Please email us at support@ohayopop.com with a photo and your order number and we will take care of you right away.',
+  'Hi Tyler — we are so sorry to hear your Rem figure arrived damaged. This is absolutely not the standard we hold ourselves to, and we want to make this right. Please email us at support@heardstore.demo with a photo and your order number and we will take care of you right away.',
   72,
   array['refund_offer_risk'],
   '{"steps":[{"step":"claim","status":"complete"},{"step":"classify","status":"complete","result":{"risk_score":8,"sentiment_label":"negative","needs_order_context":true}},{"step":"brand_voice_rag","status":"complete","matched_count":2,"snippets":["Thank you so much for your kind words! It means the world","Hi there — we''re so sorry to hear your order didn''t arri"]},{"step":"fetch_order_context","status":"complete","found":true},{"step":"draft","status":"complete","confidence":72},{"step":"guardrails","status":"warning","passed":false,"fired_flags":["refund_offer_risk"]},{"step":"post","status":"skipped"}]}'::jsonb
@@ -102,7 +106,7 @@ insert into reviews (id, store_id, external_id, source, reviewer_name, rating, t
   'aaaaaaaa-0001-0000-0000-000000000000',
   'jm-ext-003', 'judgeme', 'Mei C.', 5,
   'Absolutely love it!!',
-  'This is my third order from OhayoPop and every time the packaging is perfect and the figures arrive in pristine condition. The Miku figure looks even better in person than in the photos. Fast shipping too!',
+  'This is my third order and every time the packaging is perfect and the figures arrive in pristine condition. The Miku figure looks even better in person than in the photos. Fast shipping too!',
   'Hatsune Miku 1/4 Scale Figure',
   'auto_posted', now() - interval '1 day'
 ) on conflict (id) do nothing;
@@ -111,8 +115,8 @@ insert into review_actions (review_id, risk_score, sentiment_label, agent_reason
   'cccccccc-0003-0000-0000-000000000000',
   1, 'positive',
   'Enthusiastic 5-star repeat customer. Zero risk. Perfect auto-post candidate.',
-  'Arigatou, Mei! It makes us so happy to hear you''re loving the Miku figure — she really is stunning in person, isn''t she? Thank you for being such a wonderful part of the OhayoPop community. We can''t wait for you to see what''s coming next! 🌸',
-  'Arigatou, Mei! It makes us so happy to hear you''re loving the Miku figure — she really is stunning in person, isn''t she? Thank you for being such a wonderful part of the OhayoPop community. We can''t wait for you to see what''s coming next! 🌸',
+  'Arigatou, Mei! It makes us so happy to hear you''re loving the Miku figure — she really is stunning in person, isn''t she? Thank you for being such a wonderful part of our community. We can''t wait for you to see what''s coming next! 🌸',
+  'Arigatou, Mei! It makes us so happy to hear you''re loving the Miku figure — she really is stunning in person, isn''t she? Thank you for being such a wonderful part of our community. We can''t wait for you to see what''s coming next! 🌸',
   95,
   array[]::text[],
   '{"steps":[{"step":"claim","status":"complete"},{"step":"classify","status":"complete","result":{"risk_score":1,"sentiment_label":"positive","needs_order_context":false}},{"step":"brand_voice_rag","status":"complete","matched_count":2,"snippets":["Thank you so much for your kind words! It means the world","Hi there — we''re so sorry to hear your order didn''t arri"]},{"step":"fetch_order_context","status":"skipped"},{"step":"draft","status":"complete","confidence":95},{"step":"guardrails","status":"complete","passed":true,"fired_flags":[]},{"step":"post","status":"complete","posted":true}]}'::jsonb
@@ -146,7 +150,7 @@ insert into reviews (id, store_id, external_id, source, reviewer_name, rating, t
   'aaaaaaaa-0001-0000-0000-000000000000',
   'jm-ext-005', 'judgeme', 'Sam T.', 5,
   null,
-  'Best anime store I''ve found online. Will be ordering again for sure.',
+  'Best anime figure store I''ve found online. Will be ordering again for sure.',
   'One Piece Luffy Gear 5 Figure',
   'pending', now() - interval '10 minutes'
 ) on conflict (id) do nothing;
