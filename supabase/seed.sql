@@ -7,7 +7,7 @@
 -- ============================================================
 insert into stores (
   id, user_id,
-  store_domain, store_name, platform,
+  store_domain, shopify_domain, store_name, platform,
   platform_access_token,
   judgeme_api_token, judgeme_webhook_secret,
   google_connection_mode, google_location_name,
@@ -15,7 +15,8 @@ insert into stores (
 ) values (
   'aaaaaaaa-0001-0000-0000-000000000000',
   '1c5f57f9-c036-49cb-9294-7218e656d942', -- replace with real user ID (done)
-  'ohayopop.myshopify.com',
+  'ohayopop.com',                          -- public-facing store domain
+  '263c83-3.myshopify.com',               -- Shopify internal domain (used by Shopify Admin API + Judge.me); see DEPLOYMENT.md step 2.8
   'OhayoPop',
   'shopify',
   'demo_shopify_token',

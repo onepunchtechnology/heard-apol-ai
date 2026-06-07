@@ -31,13 +31,13 @@ export async function POST(
 
   const { data: storeData } = await admin
     .from('stores')
-    .select('user_id, store_domain, judgeme_api_token, google_connection_mode')
+    .select('user_id, shopify_domain, judgeme_api_token, google_connection_mode')
     .eq('id', review.store_id)
     .maybeSingle()
 
   if (!storeData) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const store = storeData as Pick<StoreRow, 'user_id' | 'store_domain' | 'judgeme_api_token' | 'google_connection_mode'>
+  const store = storeData as Pick<StoreRow, 'user_id' | 'shopify_domain' | 'judgeme_api_token' | 'google_connection_mode'>
 
   if (store.user_id !== user.id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -51,7 +51,7 @@ export async function POST(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        store_domain: store.store_domain,
+        store_domain: store.shopify_domain,
         api_token: store.judgeme_api_token,
         reply: { body: reply },
       }),

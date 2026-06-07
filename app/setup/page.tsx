@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { SplitHeroLayout } from '@/components/ui/SplitHeroLayout'
 
 type Step = 1 | 2 | 3 | 4
@@ -9,6 +9,8 @@ type TonePositive = 'warm' | 'enthusiastic' | 'polished'
 type ToneNegative = 'empathetic' | 'solution_focused' | 'measured'
 
 const STEP_LABELS = ['1 Connect', '2 Positive tone', '3 Negative tone', '4 Complete'] as const
+
+const SHOPIFY_DOMAIN_RE = /^[a-zA-Z0-9-]+\.myshopify\.com$/
 
 const POSITIVE_TONES: Array<{ id: TonePositive; label: string; description: string; sample: string }> = [
   {
@@ -100,51 +102,27 @@ function PlatformPill({ name }: { name: string }) {
   )
 }
 
-function FormInput({
-  label,
-  value,
-  onChange,
-  placeholder,
-  type = 'text',
-  helpLink,
-  helpText,
-}: {
-  label: string
-  value: string
-  onChange: (v: string) => void
-  placeholder: string
-  type?: string
-  helpLink?: string
-  helpText?: string
-}) {
+function OrDivider() {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <label style={{ fontFamily: 'Epilogue', fontSize: '13px', color: 'var(--color-text)', fontWeight: 500 }}>
-          {label}
-        </label>
-        {helpLink && helpText && (
-          <a href={helpLink} target="_blank" rel="noopener noreferrer" style={{ fontFamily: 'Epilogue', fontSize: '13px', color: 'var(--color-accent-dim)', textDecoration: 'none' }}>
-            {helpText}
-          </a>
-        )}
-      </div>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        style={{ width: '100%', height: '48px', padding: '0 16px', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', fontFamily: 'Epilogue', fontSize: '15px', color: 'var(--color-text)' }}
-      />
+    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-border)' }} />
+      <span style={{ fontFamily: 'Epilogue', fontSize: '13px', color: 'var(--color-muted)' }}>or</span>
+      <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-border)' }} />
     </div>
   )
 }
 
-function PrimaryButton({ children, loading, type = 'submit' }: { children: React.ReactNode; loading?: boolean; type?: 'submit' | 'button' }) {
+function PrimaryButton({ children, loading, type = 'submit', onClick }: {
+  children: React.ReactNode
+  loading?: boolean
+  type?: 'submit' | 'button'
+  onClick?: () => void
+}) {
   return (
     <button
       type={type}
       disabled={loading}
+      onClick={onClick}
       style={{ width: '100%', height: '48px', backgroundColor: 'var(--color-accent)', border: 'none', borderRadius: 'var(--radius-md)', fontFamily: 'Epilogue', fontWeight: 500, fontSize: '15px', color: 'var(--color-text)', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.5 : 1, transition: `opacity var(--duration-short) var(--ease-out)` }}
     >
       {children}
@@ -161,16 +139,6 @@ function SkipLink({ children, onClick }: { children: React.ReactNode; onClick: (
     >
       {children}
     </button>
-  )
-}
-
-function OrDivider() {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-      <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-border)' }} />
-      <span style={{ fontFamily: 'Epilogue', fontSize: '13px', color: 'var(--color-muted)' }}>or</span>
-      <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-border)' }} />
-    </div>
   )
 }
 
@@ -220,41 +188,77 @@ function ToneCard<T extends string>({
   )
 }
 
-export default function SetupPage() {
+function ShopifyConnectedBadge({ domain }: { domain: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', backgroundColor: 'var(--color-success-bg)', borderRadius: 'var(--radius-md)' }}>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <circle cx="8" cy="8" r="8" fill="var(--color-success)" fillOpacity="0.2"/>
+        <path d="M4.5 8L7 10.5L11.5 6" stroke="var(--color-success)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+      <span style={{ fontFamily: 'Epilogue', fontSize: '13px', color: 'var(--color-success)', fontWeight: 500 }}>
+        Shopify connected — {domain}
+      </span>
+    </div>
+  )
+}
+
+function SetupContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [step, setStep] = useState<Step>(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const [storeConnected, setStoreConnected] = useState(false)
-  const [shopDomain, setShopDomain] = useState('')
-  const [shopifyToken, setShopifyToken] = useState('')
+  const [shopifyConnected, setShopifyConnected] = useState(false)
+  const [shopifyDomain, setShopifyDomain] = useState('')
+  const [shopDomainInput, setShopDomainInput] = useState('')
   const [judgemeToken, setJudgemeToken] = useState('')
+  const [storeConnected, setStoreConnected] = useState(false)
 
   const [tonePositive, setTonePositive] = useState<TonePositive>('warm')
   const [toneNegative, setToneNegative] = useState<ToneNegative>('empathetic')
   const [importedSamples, setImportedSamples] = useState<string[]>([])
   const [importCount, setImportCount] = useState({ reviews: 0, replies: 0 })
 
+  useEffect(() => {
+    const shopifyParam = searchParams.get('shopify')
+    const shopParam = searchParams.get('shop')
+    if (shopifyParam === 'connected' && shopParam) {
+      setShopifyConnected(true)
+      setShopifyDomain(shopParam)
+      setStoreConnected(true)
+      window.history.replaceState({}, '', '/setup')
+    }
+    const errorParam = searchParams.get('error')
+    if (errorParam) {
+      const messages: Record<string, string> = {
+        invalid_shop: 'Invalid Shopify domain.',
+        invalid_state: 'Authorization expired — please try again.',
+        invalid_hmac: 'Security check failed — please try again.',
+        token_exchange: 'Shopify refused the connection — verify the app is installed.',
+        misconfigured: 'Shopify app not configured on this server.',
+      }
+      setError(messages[errorParam] ?? 'Shopify connection failed.')
+      window.history.replaceState({}, '', '/setup')
+    }
+  }, [searchParams])
+
+  function handleConnectShopify() {
+    setError(null)
+    const normalized = shopDomainInput.replace(/^https?:\/\//, '').replace(/\/$/, '').toLowerCase()
+    if (!SHOPIFY_DOMAIN_RE.test(normalized)) {
+      setError('Enter a valid *.myshopify.com domain first.')
+      return
+    }
+    window.location.href = `/api/auth/shopify?shop=${encodeURIComponent(normalized)}`
+  }
+
   async function handleStep1(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError(null)
     try {
-      let anyConnected = false
-      if (shopDomain && shopifyToken) {
-        const res = await fetch('/api/setup/shopify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ store_domain: shopDomain, access_token: shopifyToken }),
-        })
-        if (!res.ok) {
-          const { error: err } = await res.json()
-          setError(err ?? 'Shopify connection failed')
-          return
-        }
-        anyConnected = true
-      }
+      let anyConnected = shopifyConnected
       if (judgemeToken) {
         const res = await fetch('/api/setup/judgeme', {
           method: 'POST',
@@ -403,7 +407,7 @@ export default function SetupPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <div style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: storeConnected ? 'var(--color-success)' : 'var(--color-muted)' }} />
           <span style={{ fontFamily: 'Epilogue', fontSize: '13px', color: 'var(--color-muted)' }}>
-            {storeConnected ? 'OhayoPop · Live' : 'No store connected'}
+            {storeConnected ? `${shopifyDomain || 'Your store'} · Live` : 'No store connected'}
           </span>
         </div>
         <div style={{ marginTop: 'auto', paddingTop: '32px' }}>
@@ -426,25 +430,63 @@ export default function SetupPage() {
           <h1 style={{ fontFamily: 'Epilogue', fontWeight: 500, fontSize: '20px', color: 'var(--color-text)', margin: 0 }}>
             Connect your store
           </h1>
-          <FormInput label="Shopify store domain" placeholder="yourstore.myshopify.com" value={shopDomain} onChange={setShopDomain} />
-          <FormInput label="Shopify access token" placeholder="shpat_..." type="password" value={shopifyToken} onChange={setShopifyToken} />
+
+          {shopifyConnected ? (
+            <ShopifyConnectedBadge domain={shopifyDomain} />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label style={{ fontFamily: 'Epilogue', fontSize: '13px', color: 'var(--color-text)', fontWeight: 500 }}>
+                Shopify store domain
+              </label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  value={shopDomainInput}
+                  onChange={(e) => setShopDomainInput(e.target.value)}
+                  placeholder="yourstore.myshopify.com"
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleConnectShopify() } }}
+                  style={{ flex: 1, height: '48px', padding: '0 16px', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', fontFamily: 'Epilogue', fontSize: '15px', color: 'var(--color-text)' }}
+                />
+                <button
+                  type="button"
+                  onClick={handleConnectShopify}
+                  style={{ height: '48px', padding: '0 18px', backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', fontFamily: 'Epilogue', fontWeight: 500, fontSize: '14px', color: 'var(--color-text)', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                >
+                  Connect →
+                </button>
+              </div>
+            </div>
+          )}
+
           <OrDivider />
-          <FormInput
-            label="Judge.me API token"
-            placeholder="Paste your private API token"
-            type="password"
-            value={judgemeToken}
-            onChange={setJudgemeToken}
-            helpLink="https://judge.me/admin/settings/integrations"
-            helpText="Where do I find this?"
-          />
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <label style={{ fontFamily: 'Epilogue', fontSize: '13px', color: 'var(--color-text)', fontWeight: 500 }}>
+                Judge.me API token
+              </label>
+              <a href="https://judge.me/admin/settings/integrations" target="_blank" rel="noopener noreferrer" style={{ fontFamily: 'Epilogue', fontSize: '13px', color: 'var(--color-accent-dim)', textDecoration: 'none' }}>
+                Where do I find this?
+              </a>
+            </div>
+            <input
+              type="password"
+              value={judgemeToken}
+              onChange={(e) => setJudgemeToken(e.target.value)}
+              placeholder="Paste your private API token"
+              style={{ width: '100%', height: '48px', padding: '0 16px', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', fontFamily: 'Epilogue', fontSize: '15px', color: 'var(--color-text)' }}
+            />
+          </div>
+
           <OrDivider />
+
           <a
             href="/api/auth/google"
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '48px', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', fontFamily: 'Epilogue', fontSize: '15px', color: 'var(--color-text)', textDecoration: 'none' }}
           >
             Connect Google Business Profile
           </a>
+
           <PrimaryButton loading={loading}>
             {loading ? 'Verifying...' : 'Verify & Continue →'}
           </PrimaryButton>
@@ -524,7 +566,7 @@ export default function SetupPage() {
         </h1>
         <p style={{ fontFamily: 'Epilogue', fontSize: '15px', color: 'var(--color-muted)', maxWidth: '380px', lineHeight: 1.6, margin: '0 0 32px' }}>
           {storeConnected
-            ? 'Heard is now monitoring OhayoPop reviews and will reply automatically. Check the Activity screen for live updates.'
+            ? 'Heard is now monitoring your store reviews and will reply automatically. Check the Activity screen for live updates.'
             : 'No store connected yet. Visit Settings to connect your store and activate review monitoring.'}
         </p>
         <div style={{ display: 'flex', gap: '12px', marginBottom: '32px', width: '100%', justifyContent: 'center' }}>
@@ -554,4 +596,12 @@ export default function SetupPage() {
   }
 
   return <SplitHeroLayout left={leftContent[step]} right={rightContent[step]} />
+}
+
+export default function SetupPage() {
+  return (
+    <Suspense fallback={<div />}>
+      <SetupContent />
+    </Suspense>
+  )
 }

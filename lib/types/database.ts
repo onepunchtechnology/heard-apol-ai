@@ -8,6 +8,7 @@ export type Database = {
           id: string
           user_id: string
           store_domain: string
+          shopify_domain: string | null
           store_name: string | null
           platform: 'shopify' | 'woocommerce' | 'bigcommerce' | 'custom' | null
           platform_access_token: string | null
@@ -26,6 +27,7 @@ export type Database = {
           id?: string
           user_id: string
           store_domain: string
+          shopify_domain?: string | null
           store_name?: string | null
           platform?: 'shopify' | 'woocommerce' | 'bigcommerce' | 'custom' | null
           platform_access_token?: string | null
@@ -44,6 +46,7 @@ export type Database = {
           id?: string
           user_id?: string
           store_domain?: string
+          shopify_domain?: string | null
           store_name?: string | null
           platform?: 'shopify' | 'woocommerce' | 'bigcommerce' | 'custom' | null
           platform_access_token?: string | null

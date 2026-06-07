@@ -67,7 +67,7 @@ class Orchestrator:
         # --- 2. Load review + store credentials ---
         row = (
             self._db.table("reviews")
-            .select("*, stores(store_domain, platform_access_token, judgeme_api_token)")
+            .select("*, stores(shopify_domain, platform_access_token, judgeme_api_token)")
             .eq("id", review_id)
             .single()
             .execute()
@@ -119,7 +119,7 @@ class Orchestrator:
                 review=row,
                 classification=classification,
                 brand_voice=bv,
-                shop_domain=store.get("store_domain"),
+                shop_domain=store.get("shopify_domain"),
                 access_token=store.get("platform_access_token"),
             )
             trace.append(_step("draft", "complete", confidence=draft_result.get("confidence")))
@@ -169,7 +169,7 @@ class Orchestrator:
                         f"{JUDGEME_API_BASE}/reviews/{row['external_id']}/reply",
                         json={
                             "api_token": store["judgeme_api_token"],
-                            "shop_domain": store.get("store_domain", ""),
+                            "shop_domain": store.get("shopify_domain", ""),
                             "body": draft_reply,
                         },
                     )

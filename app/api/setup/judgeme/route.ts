@@ -26,11 +26,12 @@ export async function POST(request: NextRequest) {
   }
 
   const admin = createAdminClient()
-  const { data: store } = await admin.from('stores').select('id, store_domain').eq('user_id', user.id).maybeSingle()
+  const { data: store } = await admin.from('stores').select('id, shopify_domain').eq('user_id', user.id).maybeSingle()
   if (!store) return NextResponse.json({ error: 'Complete store setup first' }, { status: 422 })
+  if (!store.shopify_domain) return NextResponse.json({ error: 'Complete Shopify setup first' }, { status: 422 })
 
   const verifyRes = await fetch(
-    `https://judge.me/api/v1/reviews?api_token=${judgeme_api_token}&shop_domain=${store.store_domain}&per_page=1`,
+    `https://judge.me/api/v1/reviews?api_token=${judgeme_api_token}&shop_domain=${store.shopify_domain}&per_page=1`,
   )
   if (!verifyRes.ok) {
     return NextResponse.json({ error: 'Invalid Judge.me API token' }, { status: 422 })
@@ -47,7 +48,7 @@ export async function POST(request: NextRequest) {
   let reply_count = 0
   try {
     const importRes = await fetch(
-      `https://judge.me/api/v1/reviews?api_token=${judgeme_api_token}&shop_domain=${store.store_domain}&per_page=100`,
+      `https://judge.me/api/v1/reviews?api_token=${judgeme_api_token}&shop_domain=${store.shopify_domain}&per_page=100`,
     )
     if (importRes.ok) {
       const importData = await importRes.json() as { reviews?: Record<string, unknown>[]; total?: number }
