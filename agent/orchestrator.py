@@ -12,7 +12,7 @@ SUPABASE_URL = os.environ["SUPABASE_URL"]
 SUPABASE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 
 AUTO_POST_MAX_RISK = 3
-JUDGEME_API_BASE = "https://judge.me/api/v1"
+JUDGEME_API_BASE = "https://api.judge.me/api/v1"
 
 
 def should_auto_post(risk_score: int, guardrails_passed: bool) -> bool:
@@ -166,11 +166,12 @@ class Orchestrator:
             try:
                 async with httpx.AsyncClient(timeout=15.0) as client:
                     resp = await client.post(
-                        f"{JUDGEME_API_BASE}/reviews/{row['external_id']}/reply",
+                        f"{JUDGEME_API_BASE}/replies",
+                        params={"shop_domain": store.get("shopify_domain", "")},
+                        headers={"X-Api-Token": store["judgeme_api_token"]},
                         json={
-                            "api_token": store["judgeme_api_token"],
-                            "shop_domain": store.get("shopify_domain", ""),
-                            "body": draft_reply,
+                            "review_id": int(row["external_id"]),
+                            "reply": {"content": draft_reply},
                         },
                     )
                     posted = resp.status_code in (200, 201)
