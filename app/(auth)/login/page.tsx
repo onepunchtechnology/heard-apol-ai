@@ -69,26 +69,17 @@ export default function LoginPage() {
         </div>
       </div>
 
-      <div>
-        <p style={{ fontFamily: 'Epilogue', fontSize: '12px', color: 'var(--color-muted)', margin: 0 }}>
-          OhayoPop · Anime Merchandise
-        </p>
-      </div>
     </div>
   )
 
   const right = (
     <div style={{ width: '100%', maxWidth: '400px', display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'space-between' }}>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-        <div style={{ fontFamily: '"Instrument Serif"', fontStyle: 'italic', fontSize: '18px', color: 'var(--color-text)', marginBottom: '16px' }}>
-          Heard
-        </div>
-
         <h1 style={{ fontFamily: 'Epilogue', fontWeight: 500, fontSize: '28px', color: 'var(--color-text)', margin: '0 0 8px', lineHeight: 1.2 }}>
           Welcome to Heard
         </h1>
         <p style={{ fontFamily: 'Epilogue', fontSize: '15px', color: 'var(--color-muted)', margin: '0 0 32px', lineHeight: 1.6 }}>
-          Sign in with your Google account to get started.
+          Your 24/7 review agent is ready. Just sign in to connect your store.
         </p>
 
         <button
@@ -171,9 +162,6 @@ export default function LoginPage() {
         )}
       </div>
 
-      <div style={{ fontFamily: 'Epilogue', fontSize: '12px', color: 'var(--color-muted)' }}>
-        heard.apol.ai
-      </div>
     </div>
   )
 
