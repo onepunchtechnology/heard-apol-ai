@@ -5,7 +5,7 @@ MAX_REPLY_CHARS = 1200
 MIN_REPLY_CHARS = 20
 
 _PROHIBITED_PATTERNS = [
-    (r'\b(guarantee|guaranteed|100%|always|never fail)\b', 'unconditional_promise'),
+    (r'\b(guarantee|guaranteed|always|never fail)\b|100%', 'unconditional_promise'),
     (r'\b(refund|money back|compensation|reimburs)\b', 'refund_offer'),
     (r'\b(competitor|better than|switch to|try [A-Z][a-z]+)\b', 'competitor_mention'),
     (r'\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b', 'phone_number_pii'),

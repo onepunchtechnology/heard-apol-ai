@@ -4,10 +4,16 @@ import { existsSync, readFileSync } from 'node:fs'
 const loginPage = readFileSync('app/(auth)/login/page.tsx', 'utf8')
 const middleware = readFileSync('middleware.ts', 'utf8')
 
+// New users land on /onboard (setup wizard); redirect passes through /auth/confirm
 assert.match(
   loginPage,
-  /emailRedirectTo:\s*`\$\{window\.location\.origin\}\/auth\/confirm\?next=\/dashboard`/,
-  'magic links should return through /auth/confirm before entering /dashboard',
+  /emailRedirectTo:\s*`\$\{window\.location\.origin\}\/auth\/confirm\?next=\/onboard`/,
+  'magic links should return through /auth/confirm before entering /onboard',
+)
+assert.match(
+  loginPage,
+  /redirectTo:\s*`\$\{window\.location\.origin\}\/auth\/confirm\?next=\/onboard`/,
+  'Google OAuth should return through /auth/confirm before entering /onboard',
 )
 
 assert.ok(existsSync('app/auth/confirm/route.ts'), 'auth confirmation route should exist')
