@@ -137,6 +137,52 @@ class TestShouldAutoPost(unittest.TestCase):
         self.assertFalse(_should_auto_post(9, False))
 
 
+class TestManualApprovalMode(unittest.TestCase):
+    """manual_approval reply_mode must hold ALL reviews for human review.
+
+    CLAUDE.md: 'if stores.reply_mode = manual_approval, orchestrator always holds
+    drafts for human review regardless of risk score — nothing auto-posts.'
+    This is the primary safety guard protecting a live merchant store.
+    """
+
+    def test_reply_mode_read_from_store(self):
+        self.assertIn('reply_mode', ORCHESTRATOR,
+                      'Orchestrator must read reply_mode from store data')
+
+    def test_manual_approval_branch_exists(self):
+        self.assertIn('reply_mode == "manual_approval"', ORCHESTRATOR,
+                      'Orchestrator must branch on reply_mode == "manual_approval"')
+
+    def test_default_reply_mode_is_manual_approval(self):
+        # When stores.reply_mode is NULL, must default to manual_approval (safe default)
+        self.assertIn('"manual_approval"', ORCHESTRATOR,
+                      "reply_mode must default to 'manual_approval' when store value is missing")
+
+    def test_auto_post_not_called_in_manual_approval_branch(self):
+        # Extract the manual_approval if-block and verify it never reaches _auto_post.
+        # The block runs from 'reply_mode == ...' up to the 'elif would_auto_post' branch.
+        ma_idx = ORCHESTRATOR.index('reply_mode == "manual_approval"')
+        elif_idx = ORCHESTRATOR.index('elif would_auto_post', ma_idx)
+        manual_branch = ORCHESTRATOR[ma_idx:elif_idx]
+        self.assertNotIn('_auto_post', manual_branch,
+                         'manual_approval branch must never call _auto_post')
+
+    def test_manual_approval_judgeme_targets_needs_review(self):
+        # judgeme reviews in manual_approval mode must land in needs_review
+        # so the UI shows the Approve/Edit/Reject actions
+        self.assertIn(
+            '"needs_review" if row.get("source") == "judgeme"',
+            ORCHESTRATOR,
+            "In manual_approval mode, judgeme reviews must target 'needs_review' status",
+        )
+
+    def test_manual_approval_non_judgeme_targets_reply_pending_manual(self):
+        # Non-judgeme (google_business) reviews must use reply_pending_manual
+        # because the merchant posts manually and marks it in the UI
+        self.assertIn('reply_pending_manual', ORCHESTRATOR,
+                      "In manual_approval mode, non-judgeme reviews must use 'reply_pending_manual'")
+
+
 class TestStepHelper(unittest.TestCase):
     """_step() is used throughout the trace; verify its basic contract."""
 

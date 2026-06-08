@@ -10,8 +10,8 @@ _PROHIBITED_PATTERNS = [
     (r'\b(competitor|better than|switch to|try [A-Z][a-z]+)\b', 'competitor_mention'),
     (r'\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b', 'phone_number_pii'),
     (r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b', 'email_pii'),
-    (r'\b(free|freebie|discount code|promo code)\b', 'unsolicited_promo'),
-    (r'(fuck|shit|ass|bitch|damn)\b', 'profanity'),
+    (r'\b(freebie|discount\s+code|promo\s+code)\b|\bsomething\s+free\b|\bfor\s+free\b', 'unsolicited_promo'),
+    (r'\b(fuck|shit|ass|bitch|damn)\b', 'profanity'),
 ]
 
 @dataclass

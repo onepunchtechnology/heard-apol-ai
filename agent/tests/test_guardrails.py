@@ -204,5 +204,57 @@ class TestGuardrailsCleanReplies(unittest.TestCase):
         self.assertTrue(result.passed)
 
 
+class TestGuardrailsFalsePositives(unittest.TestCase):
+    """Phrases that are common in legitimate customer service replies but look
+    superficially like prohibited patterns. Each test encodes what SHOULD pass."""
+
+    def test_feel_free_does_not_trigger_promo(self):
+        # "feel free" is idiomatic customer service language, not a promo offer
+        reply = (
+            "Thank you for your feedback! Please feel free to reach out to our "
+            "support team and we will make this right for you."
+        )
+        result = check(reply)
+        self.assertNotIn('unsolicited_promo', result.fired_flags)
+        self.assertTrue(result.passed)
+
+    def test_free_to_contact_does_not_trigger_promo(self):
+        reply = (
+            "Hi there! We appreciate you sharing your experience. "
+            "You are free to contact us any time through our website chat."
+        )
+        result = check(reply)
+        self.assertNotIn('unsolicited_promo', result.fired_flags)
+
+    def test_reach_out_does_not_trigger_refund(self):
+        # "reach out" should not match the refund pattern
+        reply = (
+            "We're so sorry to hear this! Please reach out to our support team "
+            "and we will do our best to help."
+        )
+        result = check(reply)
+        self.assertNotIn('refund_offer', result.fired_flags)
+        self.assertTrue(result.passed)
+
+    def test_make_this_right_does_not_trigger_refund(self):
+        reply = (
+            "Hi Sarah, thank you for letting us know. We want to make this right "
+            "for you — please contact us through the order page."
+        )
+        result = check(reply)
+        self.assertNotIn('refund_offer', result.fired_flags)
+        self.assertTrue(result.passed)
+
+    def test_ass_substring_in_word_does_not_trigger_profanity(self):
+        # "class", "assistance", "pass" contain 'ass' but are not profanity
+        reply = (
+            "Thank you for your kind words about our customer service class! "
+            "We are happy to be of assistance and hope to see you again."
+        )
+        result = check(reply)
+        self.assertNotIn('profanity', result.fired_flags)
+        self.assertTrue(result.passed)
+
+
 if __name__ == '__main__':
     unittest.main()
