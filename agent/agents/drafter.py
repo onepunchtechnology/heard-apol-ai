@@ -4,10 +4,21 @@ import sys
 import uuid
 
 from google.adk import Agent, Runner
-from google.adk.sessions import InMemorySessionService
+from google.adk.sessions import InMemorySessionService, VertexAiSessionService
 from google.adk.tools.mcp_tool.mcp_toolset import McpToolset, StdioConnectionParams
 from google.genai import types
 from mcp import StdioServerParameters
+
+
+def _make_session_service():
+    agent_engine_id = os.environ.get("GOOGLE_CLOUD_AGENT_ENGINE_ID")
+    if agent_engine_id:
+        return VertexAiSessionService(
+            project=os.environ.get("GOOGLE_CLOUD_PROJECT"),
+            location=os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1"),
+            agent_engine_id=agent_engine_id,
+        )
+    return InMemorySessionService()
 
 _MCP_SERVER = os.path.join(os.path.dirname(__file__), "..", "tools", "shopify_mcp_server.py")
 
@@ -113,7 +124,7 @@ If needs_order_context is true, call fetch_order_context before drafting. Then o
         runner = Runner(
             app_name="heard_drafter",
             agent=agent,
-            session_service=InMemorySessionService(),
+            session_service=_make_session_service(),
         )
         session_id = f"draft_{uuid.uuid4().hex}"
         await runner.session_service.create_session(

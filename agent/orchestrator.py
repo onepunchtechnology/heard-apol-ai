@@ -108,27 +108,61 @@ class Orchestrator:
         sentiment: str = classification.get("sentiment_label", "neutral")
         reasoning: str = classification.get("agent_reasoning", "")
 
-        # --- 5. Brand Voice RAG — real merchant replies first, AI-generated samples as fallback ---
-        learned = (bv.get("learned_replies") or [])[:3] if bv else []
-        ai_samples = (bv.get("sample_replies") or []) if bv else []
-        needed = max(0, 3 - len(learned))
-        rag_snippets = learned + ai_samples[:needed]
+        # --- 5. Brand Voice RAG — pgvector semantic match, array-slice fallback ---
+        rag_snippets: list[str] = []
+        rag_learned_count = 0
+        rag_scores: list[float] = []
+        rag_method = "fallback"
 
-        # Cold start: no samples of any kind — generate from tone descriptions
-        if not rag_snippets and bv and (bv.get("tone_positive") or bv.get("tone_negative")):
-            generated = await self._generate_cold_start_samples(bv, row["store_id"])
-            rag_snippets = generated[:3]
-            ai_samples = generated  # refresh for count
+        if bv:
+            await self._seed_embeddings_if_needed(row["store_id"], bv)
+            review_text = f"{row.get('title', '')} {row.get('body', '')}".strip()
+            query_embedding = await self._embed_text(review_text)
+
+            if query_embedding:
+                # Source-first: learned replies take priority, sample fills remaining slots
+                learned_matches = await self._semantic_match(row["store_id"], query_embedding, "learned", 3)
+                rag_snippets = [t for t, _ in learned_matches]
+                rag_scores = [s for _, s in learned_matches]
+                rag_learned_count = len(rag_snippets)
+
+                remaining = 3 - len(rag_snippets)
+                if remaining > 0:
+                    sample_matches = await self._semantic_match(row["store_id"], query_embedding, "sample", remaining)
+                    rag_snippets += [t for t, _ in sample_matches]
+                    rag_scores += [s for _, s in sample_matches]
+
+                if rag_snippets:
+                    rag_method = "pgvector"
+
+            # Fallback: no embeddings yet or embed API failed
+            if not rag_snippets:
+                learned_arr = (bv.get("learned_replies") or [])[:3]
+                ai_samples = bv.get("sample_replies") or []
+                needed = max(0, 3 - len(learned_arr))
+                rag_snippets = learned_arr + ai_samples[:needed]
+                rag_learned_count = len(learned_arr)
+
+                # Cold start: nothing at all — generate from tone descriptions
+                if not rag_snippets and (bv.get("tone_positive") or bv.get("tone_negative")):
+                    generated = await self._generate_cold_start_samples(bv, row["store_id"])
+                    rag_snippets = generated[:3]
+                    for sample in generated:
+                        sample_emb = await self._embed_text(sample)
+                        if sample_emb:
+                            self._store_embedding(row["store_id"], sample, sample_emb, "sample")
 
         trace.append(_step(
             "brand_voice_rag", "complete",
+            method=rag_method,
             matched_count=len(rag_snippets),
-            real_reply_count=len(learned),
-            ai_sample_count=len(rag_snippets) - len(learned),
+            real_reply_count=rag_learned_count,
+            ai_sample_count=len(rag_snippets) - rag_learned_count,
+            similarity_scores=[round(s, 3) for s in rag_scores] if rag_scores else None,
             snippets=[s[:60] for s in rag_snippets],
         ))
 
-        # Inject prioritized snippets so the drafter reads them from brand_voice.sample_replies
+        # Inject semantically matched snippets so the drafter reads them from brand_voice.sample_replies
         bv = {**(bv or {}), "sample_replies": rag_snippets}
 
         # --- 6. Draft — DrafterAgent calls Shopify MCP for order context when needed ---
@@ -210,7 +244,7 @@ class Orchestrator:
             self._set_status(review_id, "auto_posted")
             trace.append(_step("post", "complete"))
             print(f"[{review_id}] auto_posted")
-            self._add_learned_reply(row["store_id"], draft_reply)
+            await self._add_learned_reply(row["store_id"], draft_reply)
         else:
             self._set_status(review_id, "reply_pending_manual")
             trace.append(_step("post", "warning", reason="post_failed_or_unsupported_source"))
@@ -249,8 +283,84 @@ class Orchestrator:
             print(f"[brand_voice_rag] cold start generation failed: {exc}")
             return []
 
-    def _add_learned_reply(self, store_id: str, reply_text: str) -> None:
-        """Prepend a real posted reply to brand_voice_config.learned_replies (capped at 20)."""
+    # ------------------------------------------------------------------ RAG helpers
+
+    async def _embed_text(self, text: str) -> list[float] | None:
+        try:
+            result = await _genai_client.aio.models.embed_content(
+                model="text-embedding-004",
+                contents=text,
+            )
+            return list(result.embeddings[0].values)
+        except Exception as exc:
+            print(f"[rag] embed failed: {exc}")
+            return None
+
+    def _store_embedding(self, store_id: str, reply_text: str, embedding: list[float], source: str) -> None:
+        try:
+            self._db.table("brand_voice_embeddings").upsert(
+                {
+                    "store_id": store_id,
+                    "reply_text": reply_text,
+                    "embedding": embedding,
+                    "source": source,
+                },
+                on_conflict="store_id,reply_text",
+            ).execute()
+        except Exception as exc:
+            print(f"[rag] store_embedding failed: {exc}")
+
+    async def _semantic_match(
+        self,
+        store_id: str,
+        query_embedding: list[float],
+        source: str,
+        limit: int,
+    ) -> list[tuple[str, float]]:
+        try:
+            result = self._db.rpc("match_brand_voice_replies", {
+                "p_store_id": store_id,
+                "p_query_embedding": query_embedding,
+                "p_source": source,
+                "p_limit": limit,
+            }).execute()
+            return [(row["reply_text"], float(row["similarity"])) for row in (result.data or [])]
+        except Exception as exc:
+            print(f"[rag] semantic_match failed (source={source}): {exc}")
+            return []
+
+    async def _seed_embeddings_if_needed(self, store_id: str, bv: dict) -> None:
+        """One-time lazy seed: embed all existing replies when a store has no embeddings yet."""
+        try:
+            response = (
+                self._db.table("brand_voice_embeddings")
+                .select("id", count="exact")
+                .eq("store_id", store_id)
+                .execute()
+            )
+            if response.count and response.count > 0:
+                return
+        except Exception:
+            return
+
+        seeded = 0
+        for reply in (bv.get("learned_replies") or []):
+            emb = await self._embed_text(reply)
+            if emb:
+                self._store_embedding(store_id, reply, emb, "learned")
+                seeded += 1
+        for reply in (bv.get("sample_replies") or []):
+            emb = await self._embed_text(reply)
+            if emb:
+                self._store_embedding(store_id, reply, emb, "sample")
+                seeded += 1
+        if seeded:
+            print(f"[rag] seeded {seeded} embeddings for store {store_id}")
+
+    # ------------------------------------------------------------------ learned replies
+
+    async def _add_learned_reply(self, store_id: str, reply_text: str) -> None:
+        """Prepend a real posted reply to brand_voice_config.learned_replies (capped at 20) and embed it."""
         bv = (
             self._db.table("brand_voice_config")
             .select("id, learned_replies")
@@ -265,6 +375,10 @@ class Orchestrator:
         self._db.table("brand_voice_config").update(
             {"learned_replies": deduped[:20]}
         ).eq("id", bv["id"]).execute()
+
+        emb = await self._embed_text(reply_text)
+        if emb:
+            self._store_embedding(store_id, reply_text, emb, "learned")
 
     def _set_status(self, review_id: str, status: str) -> None:
         self._db.table("reviews").update({"status": status, "updated_at": _now()}).eq("id", review_id).execute()

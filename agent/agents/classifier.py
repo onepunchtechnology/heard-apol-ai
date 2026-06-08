@@ -1,8 +1,20 @@
 import json
+import os
 import uuid
 from google.adk import Agent, Runner
-from google.adk.sessions import InMemorySessionService
+from google.adk.sessions import InMemorySessionService, VertexAiSessionService
 from google.genai import types
+
+
+def _make_session_service():
+    agent_engine_id = os.environ.get("GOOGLE_CLOUD_AGENT_ENGINE_ID")
+    if agent_engine_id:
+        return VertexAiSessionService(
+            project=os.environ.get("GOOGLE_CLOUD_PROJECT"),
+            location=os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1"),
+            agent_engine_id=agent_engine_id,
+        )
+    return InMemorySessionService()
 
 INSTRUCTION = """You are a customer review classifier for an e-commerce brand response agent.
 
@@ -35,7 +47,7 @@ class ClassifierAgent:
         self._runner = Runner(
             app_name="heard_classifier",
             agent=self._agent,
-            session_service=InMemorySessionService(),
+            session_service=_make_session_service(),
         )
 
     async def classify(self, reviewer_name: str, rating: int, body: str, source: str) -> dict:

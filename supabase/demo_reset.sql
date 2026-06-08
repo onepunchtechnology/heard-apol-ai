@@ -75,7 +75,7 @@ insert into review_actions (
   'Hi Tyler — we are so sorry to hear your Rem figure arrived damaged. This is absolutely not the standard we hold ourselves to, and we want to make this right. Please email us at support@heardstore.demo with a photo and your order number and we will take care of you right away.',
   null, 72,
   array['refund_offer_risk'],
-  '{"steps":[{"step":"claim","status":"complete"},{"step":"classify","status":"complete","result":{"risk_score":8,"sentiment_label":"negative","needs_order_context":true}},{"step":"brand_voice_rag","status":"complete","matched_count":2,"snippets":["Thank you so much for your kind words! It means the world","Hi there — we''re so sorry to hear your order didn''t arri"]},{"step":"fetch_order_context","status":"complete","found":true},{"step":"draft","status":"complete","confidence":72},{"step":"guardrails","status":"warning","passed":false,"fired_flags":["refund_offer_risk"]},{"step":"post","status":"skipped"}]}'::jsonb,
+  '{"steps":[{"step":"claim","status":"complete"},{"step":"classify","status":"complete","result":{"risk_score":8,"sentiment_label":"negative","needs_order_context":true}},{"step":"brand_voice_rag","status":"complete","method":"pgvector","matched_count":2,"real_reply_count":0,"ai_sample_count":2,"similarity_scores":[0.88,0.71],"snippets":["Thank you so much for your kind words! It means the world","Hi there — we''re so sorry to hear your order didn''t arri"]},{"step":"fetch_order_context","status":"complete","found":true},{"step":"draft","status":"complete","confidence":72},{"step":"guardrails","status":"warning","passed":false,"fired_flags":["refund_offer_risk"]},{"step":"post","status":"skipped"}]}'::jsonb,
   'escalate', null, null, null, now()
 )
 on conflict (review_id) do update set
@@ -104,7 +104,7 @@ insert into review_actions (
   'Thank you for taking the time to leave a review. We''re sorry the piece didn''t fully meet your expectations — we''re always looking for ways to improve. If you''d like to share more specific feedback, please reach out to us directly.',
   null, 65,
   array[]::text[],
-  '{"steps":[{"step":"claim","status":"complete"},{"step":"classify","status":"complete","result":{"risk_score":5,"sentiment_label":"negative","needs_order_context":false}},{"step":"brand_voice_rag","status":"complete","matched_count":2,"snippets":["Thank you so much for your kind words! It means the world","Hi there — we''re so sorry to hear your order didn''t arri"]},{"step":"fetch_order_context","status":"skipped"},{"step":"draft","status":"complete","confidence":65},{"step":"guardrails","status":"complete","passed":true,"fired_flags":[]},{"step":"post","status":"skipped"}]}'::jsonb,
+  '{"steps":[{"step":"claim","status":"complete"},{"step":"classify","status":"complete","result":{"risk_score":5,"sentiment_label":"negative","needs_order_context":false}},{"step":"brand_voice_rag","status":"complete","method":"pgvector","matched_count":2,"real_reply_count":0,"ai_sample_count":2,"similarity_scores":[0.82,0.69],"snippets":["Thank you so much for your kind words! It means the world","Hi there — we''re so sorry to hear your order didn''t arri"]},{"step":"fetch_order_context","status":"skipped"},{"step":"draft","status":"complete","confidence":65},{"step":"guardrails","status":"complete","passed":true,"fired_flags":[]},{"step":"post","status":"skipped"}]}'::jsonb,
   'escalate', null, null, null, now()
 )
 on conflict (review_id) do update set
@@ -134,7 +134,7 @@ insert into review_actions (
   'Arigatou, Mei! It makes us so happy to hear you''re loving the Miku figure — she really is stunning in person, isn''t she? Thank you for being such a wonderful part of the OhayoPop community. We can''t wait for you to see what''s coming next! 🌸',
   95,
   array[]::text[],
-  '{"steps":[{"step":"claim","status":"complete"},{"step":"classify","status":"complete","result":{"risk_score":1,"sentiment_label":"positive","needs_order_context":false}},{"step":"brand_voice_rag","status":"complete","matched_count":2,"snippets":["Thank you so much for your kind words! It means the world","Hi there — we''re so sorry to hear your order didn''t arri"]},{"step":"fetch_order_context","status":"skipped"},{"step":"draft","status":"complete","confidence":95},{"step":"guardrails","status":"complete","passed":true,"fired_flags":[]},{"step":"post","status":"complete","posted":true}]}'::jsonb,
+  '{"steps":[{"step":"claim","status":"complete"},{"step":"classify","status":"complete","result":{"risk_score":1,"sentiment_label":"positive","needs_order_context":false}},{"step":"brand_voice_rag","status":"complete","method":"pgvector","matched_count":2,"real_reply_count":0,"ai_sample_count":2,"similarity_scores":[0.91,0.65],"snippets":["Thank you so much for your kind words! It means the world","Hi there — we''re so sorry to hear your order didn''t arri"]},{"step":"fetch_order_context","status":"skipped"},{"step":"draft","status":"complete","confidence":95},{"step":"guardrails","status":"complete","passed":true,"fired_flags":[]},{"step":"post","status":"complete","posted":true}]}'::jsonb,
   'auto_post', now() - interval '1 day', null, null, now()
 )
 on conflict (review_id) do update set
@@ -164,7 +164,7 @@ insert into review_actions (
   'Thank you for the thoughtful review, Jordan! We''re so glad the Asuka figure impressed — those wing details are definitely one of our favorites. We''re sorry to hear about the loose accessory; we''re passing this along to our packing team. We hope she looks incredible on display! 🙌',
   88,
   array[]::text[],
-  '{"steps":[{"step":"claim","status":"complete"},{"step":"classify","status":"complete","result":{"risk_score":2,"sentiment_label":"positive","needs_order_context":false}},{"step":"brand_voice_rag","status":"complete","matched_count":2,"snippets":["Thank you so much for your kind words! It means the world","Hi there — we''re so sorry to hear your order didn''t arri"]},{"step":"fetch_order_context","status":"skipped"},{"step":"draft","status":"complete","confidence":88},{"step":"guardrails","status":"complete","passed":true,"fired_flags":[]},{"step":"post","status":"complete","posted":true}]}'::jsonb,
+  '{"steps":[{"step":"claim","status":"complete"},{"step":"classify","status":"complete","result":{"risk_score":2,"sentiment_label":"positive","needs_order_context":false}},{"step":"brand_voice_rag","status":"complete","method":"pgvector","matched_count":2,"real_reply_count":0,"ai_sample_count":2,"similarity_scores":[0.86,0.73],"snippets":["Thank you so much for your kind words! It means the world","Hi there — we''re so sorry to hear your order didn''t arri"]},{"step":"fetch_order_context","status":"skipped"},{"step":"draft","status":"complete","confidence":88},{"step":"guardrails","status":"complete","passed":true,"fired_flags":[]},{"step":"post","status":"complete","posted":true}]}'::jsonb,
   'auto_post', now() - interval '2 days', null, null, now()
 )
 on conflict (review_id) do update set
