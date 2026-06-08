@@ -17,7 +17,12 @@ export async function POST(request: NextRequest) {
     if (error || !data?.properties?.action_link) {
       return NextResponse.json({ error: 'Demo login unavailable' }, { status: 500 })
     }
-    return NextResponse.json({ demo: true, url: data.properties.action_link })
+    const hashedToken = data.properties.hashed_token
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || ''
+    const confirmUrl = hashedToken
+      ? `${appUrl}/auth/confirm?token_hash=${hashedToken}&type=magiclink&next=/dashboard`
+      : data.properties.action_link
+    return NextResponse.json({ demo: true, url: confirmUrl })
   }
 
   return NextResponse.json({ demo: false })

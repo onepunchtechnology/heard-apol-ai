@@ -18,5 +18,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/login?error=demo', request.url))
   }
 
+  const hashedToken = data.properties.hashed_token
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin
+  if (hashedToken) {
+    const confirmUrl = `${appUrl}/auth/confirm?token_hash=${hashedToken}&type=magiclink&next=/dashboard`
+    return NextResponse.redirect(confirmUrl)
+  }
+
   return NextResponse.redirect(data.properties.action_link)
 }

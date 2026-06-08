@@ -68,7 +68,7 @@ export async function POST(
   // Fail if we were supposed to post to a live platform but couldn't.
   // Google manual_paste approvals are intentionally silent (merchant posts manually).
   const shouldHavePosted =
-    review.source === 'judgeme' ||
+    (review.source === 'judgeme' && !!store.judgeme_api_token) ||
     (review.source === 'google_business' && store.google_connection_mode === 'api')
   if (shouldHavePosted && !posted) {
     const msg = postError ?? 'Reply could not be posted to the review platform'
