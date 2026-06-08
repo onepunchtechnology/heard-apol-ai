@@ -11,12 +11,13 @@ export default async function SettingsPage() {
 
   const { data: storeData } = await supabase
     .from('stores')
-    .select('id, store_name, store_domain, google_connection_mode, google_location_name, judgeme_api_token, reply_mode')
+    .select('id, store_name, store_domain, shopify_domain, google_connection_mode, google_location_name, judgeme_api_token, reply_mode')
     .eq('user_id', user!.id)
     .maybeSingle()
 
   const store = storeData as StoreRow | null
   const judgemeConnected = !!(storeData as { judgeme_api_token?: string | null } | null)?.judgeme_api_token
+  const shopifyConnected = !!(storeData as { shopify_domain?: string | null } | null)?.shopify_domain
 
   const { data: brandVoiceData } = store
     ? await supabase
@@ -28,5 +29,5 @@ export default async function SettingsPage() {
 
   const brandVoice = brandVoiceData as BrandVoiceRow | null
 
-  return <SettingsClient store={store} brandVoice={brandVoice} judgemeConnected={judgemeConnected} />
+  return <SettingsClient store={store} brandVoice={brandVoice} judgemeConnected={judgemeConnected} shopifyConnected={shopifyConnected} />
 }

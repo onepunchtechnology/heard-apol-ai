@@ -51,10 +51,12 @@ export default function SettingsClient({
   store,
   brandVoice,
   judgemeConnected,
+  shopifyConnected,
 }: {
   store: Store | null
   brandVoice: BrandVoice | null
   judgemeConnected: boolean
+  shopifyConnected: boolean
 }) {
   // Reply mode state
   const [replyMode, setReplyMode] = useState<'auto_post' | 'manual_approval'>(
@@ -366,10 +368,10 @@ export default function SettingsClient({
                 <span style={{ fontSize: 'var(--text-base)', fontWeight: 500, color: 'var(--color-text)' }}>
                   Shopify
                 </span>
-                <StatusPill connected />
+                <StatusPill connected={shopifyConnected} />
               </div>
               <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-muted)' }}>
-                Connected via OAuth · {store.store_name ?? store.store_domain}
+                {shopifyConnected ? `Connected via OAuth · ${store.store_name ?? store.store_domain}` : 'Connect via Shopify OAuth in the setup wizard.'}
               </p>
               <button
                 disabled
