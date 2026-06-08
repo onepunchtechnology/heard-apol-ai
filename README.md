@@ -6,6 +6,12 @@ Heard answers every review across your stores, in your brand voice — and only 
 
 Live at [heard.apol.ai](https://heard.apol.ai) · Built for the [Google for Startups AI Agents Challenge](https://devpost.team/google-cloud-for-startups/hackathons/3197), Track 1 · Part of [apol.ai](https://apol.ai)
 
+> **PROPRIETARY — HACKATHON REVIEW ONLY**
+>
+> Copyright © 2026 One Punch Technology, Inc. All rights reserved.
+>
+> This repository and all of its contents — including but not limited to source code, configuration files, prompts, system architecture, and documentation — are the exclusive intellectual property of One Punch Technology, Inc. and are made available solely for review by authorized hackathon organizers and judges of the Google for Startups AI Agents Challenge. No other right or license is granted, express or implied. Any reproduction, distribution, modification, or commercial use of any portion of this repository, in whole or in part, without the prior written consent of One Punch Technology, Inc. is strictly prohibited and may constitute copyright infringement and/or misappropriation of trade secrets under applicable law. Unauthorized use may be reported to Devpost and GitHub.
+
 ---
 
 ## Architecture
