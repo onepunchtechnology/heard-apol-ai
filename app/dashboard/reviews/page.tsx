@@ -16,7 +16,7 @@ export default async function ReviewsPage() {
           final_reply, order_context, agent_trace, confidence, decision
         )
       `)
-      .in('status', ['needs_review', 'reply_pending_manual', 'auto_posted', 'approved'])
+      .in('status', ['pending', 'processing', 'needs_review', 'reply_pending_manual', 'auto_posted', 'approved'])
       .order('received_at', { ascending: false })
       .limit(50),
     supabase

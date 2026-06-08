@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import { formatDistanceToNow } from '@/lib/utils'
 
 interface OrderContext {
@@ -66,13 +67,64 @@ function reasonTag(review: Review): string {
   return 'Order issue'
 }
 
-export default function ReviewsClient({ reviews, replyMode }: { reviews: Review[]; replyMode: 'auto_post' | 'manual_approval' }) {
+export default function ReviewsClient({ reviews: initialReviews, replyMode }: { reviews: Review[]; replyMode: 'auto_post' | 'manual_approval' }) {
+  const [reviews, setReviews] = useState<Review[]>(initialReviews)
   const [filter, setFilter] = useState<Filter>('All')
   const [selectedId, setSelectedId] = useState<string | null>(
-    reviews.find((r) => r.status === 'needs_review')?.id ?? null,
+    initialReviews.find((r) => r.status === 'needs_review')?.id ?? null,
   )
   const [postedIds, setPostedIds] = useState<Set<string>>(new Set())
   const [locallyApprovedIds, setLocallyApprovedIds] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    const supabase = createClient()
+    const channel = supabase
+      .channel('reviews-live')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'reviews' },
+        async (payload) => {
+          const updated = payload.new as { id: string; status: string }
+          if (['needs_review', 'reply_pending_manual', 'auto_posted'].includes(updated.status)) {
+            const { data } = await supabase
+              .from('reviews')
+              .select(`
+                id, reviewer_name, rating, title, body, source, received_at, status, product_title,
+                review_actions (
+                  id, risk_score, risk_flags, sentiment_label, agent_reasoning, draft_reply,
+                  final_reply, order_context, agent_trace, confidence, decision
+                )
+              `)
+              .eq('id', updated.id)
+              .single()
+            if (data) {
+              const row = data as Review
+              setReviews((prev) => {
+                const exists = prev.some((r) => r.id === row.id)
+                if (exists) return prev.map((r) => (r.id === row.id ? row : r))
+                return [row, ...prev]
+              })
+              setSelectedId((prev) => prev ?? row.id)
+            }
+          } else {
+            setReviews((prev) =>
+              prev.map((r) => (r.id === updated.id ? { ...r, status: updated.status } : r)),
+            )
+          }
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'reviews' },
+        (payload) => {
+          const row = payload.new as Review
+          setReviews((prev) => [{ ...row, review_actions: null }, ...prev])
+        },
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [])
 
   const effectiveReviews = reviews.map((r) =>
     locallyApprovedIds.has(r.id) ? { ...r, status: 'approved' as const } : r,
@@ -87,7 +139,10 @@ export default function ReviewsClient({ reviews, replyMode }: { reviews: Review[
   const autoRepliedCount = effectiveReviews.filter(
     (r) => r.status === 'auto_posted' || r.status === 'approved',
   ).length
-  const allCaughtUp = reviews.length > 0 && escalatedCount === 0
+  const inFlightCount = effectiveReviews.filter(
+    (r) => r.status === 'pending' || r.status === 'processing',
+  ).length
+  const allCaughtUp = reviews.length > 0 && escalatedCount === 0 && inFlightCount === 0
 
   function handlePosted(id: string) {
     setPostedIds((prev) => new Set(Array.from(prev).concat(id)))
@@ -106,7 +161,7 @@ export default function ReviewsClient({ reviews, replyMode }: { reviews: Review[
     }, 3000)
   }
 
-  // No reviews at all
+  // No reviews at all — new user empty state
   if (reviews.length === 0) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -115,10 +170,10 @@ export default function ReviewsClient({ reviews, replyMode }: { reviews: Review[
             className="font-display italic"
             style={{ fontSize: 'var(--text-2xl)', color: 'var(--color-accent-dim)' }}
           >
-            All caught up.
+            Heard is listening.
           </p>
           <p className="mt-2" style={{ fontSize: 'var(--text-sm)', color: 'var(--color-muted)' }}>
-            Heard handled reviews overnight. Nothing needs your attention.
+            Your first draft will appear here the moment a new review comes in.
           </p>
         </div>
       </div>
@@ -681,6 +736,7 @@ function StatusBadge({ status, decision }: { status: string; decision?: 'auto_po
   const cfg = map[status] ?? { bg: 'var(--color-surface)', color: 'var(--color-muted)', label: status }
   return (
     <span
+      className={status === 'processing' ? 'pulse' : undefined}
       style={{
         fontSize: 'var(--text-xs)',
         backgroundColor: cfg.bg,

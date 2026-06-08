@@ -309,6 +309,12 @@ function SetupContent() {
         setError(json.error ?? 'Could not save brand voice. Please complete Step 1 first.')
         return
       }
+      // Fire-and-forget: process any pending reviews immediately on setup completion
+      fetch('/api/agent/trigger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'sweep' }),
+      }).catch(() => {})
       setStep(4)
     } finally {
       setLoading(false)
@@ -566,8 +572,8 @@ function SetupContent() {
         </h1>
         <p style={{ fontFamily: 'Epilogue', fontSize: '15px', color: 'var(--color-muted)', maxWidth: '380px', lineHeight: 1.6, margin: '0 0 24px' }}>
           {storeConnected
-            ? 'Heard is monitoring your store reviews and will draft replies for your approval. Check the Reviews screen to approve and post.'
-            : 'No store connected yet. Visit Settings to connect your store and activate review monitoring.'}
+            ? 'Heard is listening — drafts will appear in your approval queue as reviews come in. Check the Reviews screen to review and post.'
+            : 'No store connected yet. Visit Settings to connect your store and start receiving drafts.'}
         </p>
         {storeConnected && (
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '14px 16px', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-md)', marginBottom: '24px', maxWidth: '400px', width: '100%' }}>
@@ -586,16 +592,6 @@ function SetupContent() {
             </div>
           </div>
         )}
-        <div style={{ display: 'flex', gap: '12px', marginBottom: '32px', width: '100%', justifyContent: 'center' }}>
-          <div style={{ flex: 1, maxWidth: '180px', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', padding: '16px' }}>
-            <div style={{ fontFamily: 'Epilogue', fontWeight: 500, fontSize: '13px', color: 'var(--color-accent-dim)', marginBottom: '4px' }}>Reply mode</div>
-            <div style={{ fontFamily: 'Epilogue', fontSize: '12px', color: 'var(--color-muted)' }}>Manual Approval</div>
-          </div>
-          <div style={{ flex: 1, maxWidth: '180px', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', padding: '16px' }}>
-            <div style={{ fontFamily: 'Epilogue', fontWeight: 500, fontSize: '13px', color: 'var(--color-escalate)', marginBottom: '4px' }}>Escalations</div>
-            <div style={{ fontFamily: 'Epilogue', fontSize: '12px', color: 'var(--color-escalate)' }}>Risk ≥ 4</div>
-          </div>
-        </div>
         <button
           onClick={() => router.push('/dashboard')}
           style={{ width: '400px', height: '52px', backgroundColor: 'var(--color-accent)', border: 'none', borderRadius: 'var(--radius-md)', fontFamily: 'Epilogue', fontWeight: 500, fontSize: '15px', color: 'var(--color-text)', cursor: 'pointer', marginBottom: '16px' }}
