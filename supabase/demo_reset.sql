@@ -4,6 +4,12 @@
 --   - 5 fresh pending reviews with no review_actions
 --
 -- Safe to run repeatedly. Run before each judge demo session.
+-- After run, confirm with the below sql:
+    -- select status, count(*)
+    -- from reviews
+    -- where store_id = 'aaaaaaaa-0001-0000-0000-000000000000'
+    -- group by status
+    -- order by status;
 --
 -- Usage:
 --   supabase db execute --file supabase/demo_reset.sql
