@@ -30,6 +30,18 @@ def _step(name: str, status: str, **extra) -> dict:
     return {"step": name, "status": status, "at": _now(), **extra}
 
 
+def _dedupe(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    deduped: list[str] = []
+    for value in values:
+        text = value.strip()
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        deduped.append(text)
+    return deduped
+
+
 class Orchestrator:
     def __init__(self) -> None:
         self._db: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -330,32 +342,64 @@ class Orchestrator:
             return []
 
     async def _seed_embeddings_if_needed(self, store_id: str, bv: dict) -> None:
-        """One-time lazy seed: embed all existing replies when a store has no embeddings yet."""
+        """Lazy seed missing historical and configured replies into brand voice embeddings."""
+        existing: set[str] = set()
         try:
             response = (
                 self._db.table("brand_voice_embeddings")
-                .select("id", count="exact")
+                .select("reply_text")
                 .eq("store_id", store_id)
                 .execute()
             )
-            if response.count and response.count > 0:
-                return
         except Exception:
-            return
+            response = None
+
+        if response:
+            existing = {row["reply_text"] for row in (response.data or []) if row.get("reply_text")}
+
+        learned_replies = self._load_imported_final_replies(store_id) + (bv.get("learned_replies") or [])
+        sample_replies = bv.get("sample_replies") or []
 
         seeded = 0
-        for reply in (bv.get("learned_replies") or []):
+        for reply in _dedupe(learned_replies):
+            if reply in existing:
+                continue
             emb = await self._embed_text(reply)
             if emb:
                 self._store_embedding(store_id, reply, emb, "learned")
                 seeded += 1
-        for reply in (bv.get("sample_replies") or []):
+        for reply in _dedupe(sample_replies):
+            if reply in existing:
+                continue
             emb = await self._embed_text(reply)
             if emb:
                 self._store_embedding(store_id, reply, emb, "sample")
                 seeded += 1
         if seeded:
             print(f"[rag] seeded {seeded} embeddings for store {store_id}")
+
+    def _load_imported_final_replies(self, store_id: str) -> list[str]:
+        """Load historical merchant replies that should ground future drafts."""
+        try:
+            result = (
+                self._db.table("review_actions")
+                .select("final_reply, reviews!inner(status, store_id)")
+                .eq("reviews.store_id", store_id)
+                .execute()
+            )
+        except Exception as exc:
+            print(f"[rag] load imported final replies failed: {exc}")
+            return []
+
+        replies: list[str] = []
+        for row in result.data or []:
+            review = row.get("reviews") or {}
+            if review.get("status") not in ("imported", "approved"):
+                continue
+            reply = (row.get("final_reply") or "").strip()
+            if reply:
+                replies.append(reply)
+        return _dedupe(replies)
 
     # ------------------------------------------------------------------ learned replies
 

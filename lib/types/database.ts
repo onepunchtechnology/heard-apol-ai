@@ -115,7 +115,7 @@ export type Database = {
           product_title: string | null
           product_handle: string | null
           order_id: string | null
-          status: 'pending' | 'processing' | 'auto_posted' | 'needs_review' | 'reply_pending_manual' | 'failed' | 'approved' | 'rejected'
+          status: 'pending' | 'processing' | 'auto_posted' | 'needs_review' | 'reply_pending_manual' | 'failed' | 'approved' | 'rejected' | 'imported'
           received_at: string
           raw_payload: Json | null
           created_at: string
@@ -133,7 +133,7 @@ export type Database = {
           product_title?: string | null
           product_handle?: string | null
           order_id?: string | null
-          status?: 'pending' | 'processing' | 'auto_posted' | 'needs_review' | 'reply_pending_manual' | 'failed' | 'approved' | 'rejected'
+          status?: 'pending' | 'processing' | 'auto_posted' | 'needs_review' | 'reply_pending_manual' | 'failed' | 'approved' | 'rejected' | 'imported'
           received_at?: string
           raw_payload?: Json | null
           created_at?: string
@@ -151,7 +151,7 @@ export type Database = {
           product_title?: string | null
           product_handle?: string | null
           order_id?: string | null
-          status?: 'pending' | 'processing' | 'auto_posted' | 'needs_review' | 'reply_pending_manual' | 'failed' | 'approved' | 'rejected'
+          status?: 'pending' | 'processing' | 'auto_posted' | 'needs_review' | 'reply_pending_manual' | 'failed' | 'approved' | 'rejected' | 'imported'
           received_at?: string
           raw_payload?: Json | null
           created_at?: string

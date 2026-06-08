@@ -1,218 +1,111 @@
--- Demo reset script — OhayoPop
--- Restores reviews, review_actions, and agent_runs to the seeded state.
+-- Demo reset script - Heard sandbox store
+-- Restores the demo account to:
+--   - 3 imported historical replies for RAG grounding
+--   - 5 fresh pending reviews with no review_actions
+--
 -- Safe to run repeatedly. Run before each judge demo session.
 --
 -- Usage:
 --   supabase db execute --file supabase/demo_reset.sql
 --   OR paste into Supabase SQL editor
---
--- Seed-protected store ID: aaaaaaaa-0001-0000-0000-000000000000
--- Seed-protected review IDs: cccccccc-0001 through cccccccc-0005
--- Seed-protected agent_run ID: dddddddd-0001-0000-0000-000000000000
 
 begin;
 
--- ============================================================
--- 0. Restore brand voice tones for the demo store
--- ============================================================
-update brand_voice_config
-set tone_positive = 'enthusiastic', tone_negative = 'empathetic'
+insert into stores (
+  id, user_id,
+  store_domain, shopify_domain, store_name, platform,
+  platform_access_token,
+  judgeme_api_token, judgeme_webhook_secret,
+  google_connection_mode, google_location_name,
+  created_at
+) values (
+  'aaaaaaaa-0001-0000-0000-000000000000',
+  'dff66364-e9f1-49cb-980c-f78b6cccb91a',
+  'demo.heard.apol.ai',
+  null,
+  'Heard Demo Store',
+  'shopify',
+  null,
+  null,
+  null,
+  'manual_paste',
+  null,
+  now()
+) on conflict (id) do update set
+  user_id = excluded.user_id,
+  store_domain = excluded.store_domain,
+  shopify_domain = excluded.shopify_domain,
+  store_name = excluded.store_name,
+  platform = excluded.platform,
+  platform_access_token = excluded.platform_access_token,
+  judgeme_api_token = excluded.judgeme_api_token,
+  judgeme_webhook_secret = excluded.judgeme_webhook_secret,
+  google_connection_mode = excluded.google_connection_mode,
+  google_location_name = excluded.google_location_name;
+
+insert into brand_voice_config (
+  id, store_id, sample_replies, learned_replies, rules,
+  tone_description, tone_positive, tone_negative, updated_at
+) values (
+  'bbbbbbbb-0001-0000-0000-000000000000',
+  'aaaaaaaa-0001-0000-0000-000000000000',
+  array[
+    'Thank you so much for your kind words! It means the world to us that you are loving your new piece. We put so much love into every order and it is incredibly rewarding to hear it landed perfectly.',
+    'Hi there - we are so sorry to hear your order did not arrive as expected. This is not the experience we want for any customer. Please reach out to us directly and we will help make it right.'
+  ],
+  array[]::text[],
+  array[
+    'Never promise refunds or replacements publicly',
+    'Keep replies under 150 words',
+    'Use first-person plural (we/our) not I/my',
+    'Acknowledge the specific product if mentioned',
+    'Match the energy of the review - do not be overly cheerful for complaints'
+  ],
+  'Warm, playful, and passionate about anime culture. We are fans ourselves - we speak to customers as fellow collectors, not as a faceless store.',
+  'enthusiastic',
+  'empathetic',
+  now()
+) on conflict (id) do update set
+  sample_replies = excluded.sample_replies,
+  learned_replies = excluded.learned_replies,
+  rules = excluded.rules,
+  tone_description = excluded.tone_description,
+  tone_positive = excluded.tone_positive,
+  tone_negative = excluded.tone_negative,
+  updated_at = excluded.updated_at;
+
+delete from reviews
+where id in (
+  'cccccccc-0001-0000-0000-000000000000',
+  'cccccccc-0002-0000-0000-000000000000',
+  'cccccccc-0003-0000-0000-000000000000',
+  'cccccccc-0004-0000-0000-000000000000',
+  'cccccccc-0005-0000-0000-000000000000',
+  'cccccccc-0006-0000-0000-000000000000',
+  'cccccccc-0007-0000-0000-000000000000',
+  'cccccccc-0008-0000-0000-000000000000'
+);
+
+delete from brand_voice_embeddings
 where store_id = 'aaaaaaaa-0001-0000-0000-000000000000';
 
--- ============================================================
--- 1. Remove any non-seed reviews for the demo store
---    (review_actions cascade-delete via FK)
--- ============================================================
-delete from reviews
-where store_id = 'aaaaaaaa-0001-0000-0000-000000000000'
-  and id not in (
-    'cccccccc-0001-0000-0000-000000000000',
-    'cccccccc-0002-0000-0000-000000000000',
-    'cccccccc-0003-0000-0000-000000000000',
-    'cccccccc-0004-0000-0000-000000000000',
-    'cccccccc-0005-0000-0000-000000000000'
-  );
-
--- ============================================================
--- 2. Remove any non-seed agent_runs for the demo store
--- ============================================================
 delete from agent_runs
 where store_id = 'aaaaaaaa-0001-0000-0000-000000000000'
-  and id != 'dddddddd-0001-0000-0000-000000000000';
+  and id = 'dddddddd-0001-0000-0000-000000000000';
 
--- ============================================================
--- 3. Reset seed reviews to original statuses
--- ============================================================
-update reviews set status = 'needs_review', updated_at = now()
-where id = 'cccccccc-0001-0000-0000-000000000000';
+insert into reviews (id, store_id, external_id, source, reviewer_name, rating, title, body, product_title, status, received_at) values
+('cccccccc-0001-0000-0000-000000000000', 'aaaaaaaa-0001-0000-0000-000000000000', 'imported-001', 'judgeme', 'Mina R.', 5, 'Perfect packaging', 'The Sakura Miku figure arrived in perfect condition and the little thank-you note made my day.', 'Sakura Miku Nendoroid', 'imported', now() - interval '24 days'),
+('cccccccc-0002-0000-0000-000000000000', 'aaaaaaaa-0001-0000-0000-000000000000', 'imported-002', 'judgeme', 'Drew L.', 4, 'Great figure, slow shipping', 'The Gojo figure is beautiful. Shipping took a bit longer than expected, but it was packed safely.', 'Gojo Satoru Figure', 'imported', now() - interval '18 days'),
+('cccccccc-0003-0000-0000-000000000000', 'aaaaaaaa-0001-0000-0000-000000000000', 'imported-003', 'judgeme', 'Alex P.', 2, 'Box was crushed', 'The figure is okay but the collector box arrived crushed on one corner.', 'Tanjiro Deluxe Figure', 'imported', now() - interval '11 days'),
+('cccccccc-0004-0000-0000-000000000000', 'aaaaaaaa-0001-0000-0000-000000000000', 'jm-ext-004', 'judgeme', 'Mei C.', 5, 'Absolutely love it', 'This is my third order and every time the packaging is perfect and the figures arrive in pristine condition. The Miku figure looks even better in person than in the photos. Fast shipping too!', 'Hatsune Miku 1/4 Scale Figure', 'pending', now() - interval '50 minutes'),
+('cccccccc-0005-0000-0000-000000000000', 'aaaaaaaa-0001-0000-0000-000000000000', 'jm-ext-005', 'judgeme', 'Noah S.', 3, 'Sizing question', 'The hoodie is softer than expected, but the sizing runs small. Do you usually recommend sizing up for this brand?', 'Anya Forger Embroidered Hoodie', 'pending', now() - interval '40 minutes'),
+('cccccccc-0006-0000-0000-000000000000', 'aaaaaaaa-0001-0000-0000-000000000000', 'jm-ext-006', 'judgeme', 'Priya K.', 2, 'Wrong item sent', 'I ordered the Levi figure but received an Eren figure instead. The invoice has my correct item, so something went wrong in packing.', 'Levi Ackerman Figure', 'pending', now() - interval '30 minutes'),
+('cccccccc-0007-0000-0000-000000000000', 'aaaaaaaa-0001-0000-0000-000000000000', 'jm-ext-007', 'judgeme', 'Tyler B.', 1, 'Arrived broken', 'Paid $89 for this figure and it arrived with a snapped base and paint chipping off the face. This is unacceptable. I want a refund immediately or I am filing a chargeback and BBB complaint.', 'Rem Re:Zero 1/7 Scale Figure', 'pending', now() - interval '20 minutes'),
+('cccccccc-0008-0000-0000-000000000000', 'aaaaaaaa-0001-0000-0000-000000000000', 'jm-ext-008', 'judgeme', 'Sam T.', 5, null, 'Best anime figure store I have found online. Will be ordering again for sure.', 'One Piece Luffy Gear 5 Figure', 'pending', now() - interval '10 minutes');
 
-update reviews set status = 'needs_review', updated_at = now()
-where id = 'cccccccc-0002-0000-0000-000000000000';
-
-update reviews set status = 'auto_posted', updated_at = now()
-where id = 'cccccccc-0003-0000-0000-000000000000';
-
-update reviews set status = 'auto_posted', updated_at = now()
-where id = 'cccccccc-0004-0000-0000-000000000000';
-
-update reviews set status = 'pending', updated_at = now()
-where id = 'cccccccc-0005-0000-0000-000000000000';
-
--- ============================================================
--- 4. Restore review_actions for seed reviews
---    (upsert so it works even if an action was deleted)
--- ============================================================
-
--- Review 1: broken figure escalation
-insert into review_actions (
-  review_id, risk_score, sentiment_label, agent_reasoning,
-  draft_reply, final_reply, confidence, risk_flags, agent_trace,
-  decision, auto_posted_at, reviewed_by, reviewed_at, created_at
-) values (
-  'cccccccc-0001-0000-0000-000000000000',
-  8, 'negative',
-  'High-value ($89) item arrived damaged. Customer explicitly demands a refund. Risk 8: explicit refund demand + product defect claim. Guardrail would flag any refund promise. Escalating to human review.',
-  'Hi Tyler — we are so sorry to hear your Rem figure arrived damaged. This is absolutely not the standard we hold ourselves to, and we want to make this right. Please email us at support@heardstore.demo with a photo and your order number and we will take care of you right away.',
-  null, 72,
-  array['refund_offer'],
-  '{"steps":[{"step":"claim","status":"complete"},{"step":"classify","status":"complete","result":{"risk_score":8,"sentiment_label":"negative","needs_order_context":true}},{"step":"brand_voice_rag","status":"complete","method":"pgvector","matched_count":2,"real_reply_count":0,"ai_sample_count":2,"similarity_scores":[0.88,0.71],"snippets":["Thank you so much for your kind words! It means the world","Hi there — we''re so sorry to hear your order didn''t arri"]},{"step":"fetch_order_context","status":"complete","found":true},{"step":"draft","status":"complete","confidence":72},{"step":"guardrails","status":"warning","passed":false,"fired_flags":["refund_offer"]},{"step":"post","status":"skipped"}]}'::jsonb,
-  'escalate', null, null, null, now()
-)
-on conflict (review_id) do update set
-  risk_score       = excluded.risk_score,
-  sentiment_label  = excluded.sentiment_label,
-  agent_reasoning  = excluded.agent_reasoning,
-  draft_reply      = excluded.draft_reply,
-  final_reply      = excluded.final_reply,
-  confidence       = excluded.confidence,
-  risk_flags       = excluded.risk_flags,
-  agent_trace      = excluded.agent_trace,
-  decision         = excluded.decision,
-  auto_posted_at   = excluded.auto_posted_at,
-  reviewed_by      = excluded.reviewed_by,
-  reviewed_at      = excluded.reviewed_at;
-
--- Review 2: suspicious competitor-comparison review
-insert into review_actions (
-  review_id, risk_score, sentiment_label, agent_reasoning,
-  draft_reply, final_reply, confidence, risk_flags, agent_trace,
-  decision, auto_posted_at, reviewed_by, reviewed_at, created_at
-) values (
-  'cccccccc-0002-0000-0000-000000000000',
-  5, 'negative',
-  'Vague complaint with implicit competitor comparison ("other stores"). Risk 5: indirect negative comparison, no specific issue to address. Worth human review to craft a thoughtful non-defensive reply.',
-  'Thank you for taking the time to leave a review. We''re sorry the piece didn''t fully meet your expectations — we''re always looking for ways to improve. If you''d like to share more specific feedback, please reach out to us directly.',
-  null, 65,
-  array[]::text[],
-  '{"steps":[{"step":"claim","status":"complete"},{"step":"classify","status":"complete","result":{"risk_score":5,"sentiment_label":"negative","needs_order_context":false}},{"step":"brand_voice_rag","status":"complete","method":"pgvector","matched_count":2,"real_reply_count":0,"ai_sample_count":2,"similarity_scores":[0.82,0.69],"snippets":["Thank you so much for your kind words! It means the world","Hi there — we''re so sorry to hear your order didn''t arri"]},{"step":"fetch_order_context","status":"skipped"},{"step":"draft","status":"complete","confidence":65},{"step":"guardrails","status":"complete","passed":true,"fired_flags":[]},{"step":"post","status":"skipped"}]}'::jsonb,
-  'escalate', null, null, null, now()
-)
-on conflict (review_id) do update set
-  risk_score       = excluded.risk_score,
-  sentiment_label  = excluded.sentiment_label,
-  agent_reasoning  = excluded.agent_reasoning,
-  draft_reply      = excluded.draft_reply,
-  final_reply      = excluded.final_reply,
-  confidence       = excluded.confidence,
-  risk_flags       = excluded.risk_flags,
-  agent_trace      = excluded.agent_trace,
-  decision         = excluded.decision,
-  auto_posted_at   = excluded.auto_posted_at,
-  reviewed_by      = excluded.reviewed_by,
-  reviewed_at      = excluded.reviewed_at;
-
--- Review 3: happy 5-star (auto-posted)
-insert into review_actions (
-  review_id, risk_score, sentiment_label, agent_reasoning,
-  draft_reply, final_reply, confidence, risk_flags, agent_trace,
-  decision, auto_posted_at, reviewed_by, reviewed_at, created_at
-) values (
-  'cccccccc-0003-0000-0000-000000000000',
-  1, 'positive',
-  'Enthusiastic 5-star repeat customer. Zero risk. Perfect auto-post candidate.',
-  'Arigatou, Mei! It makes us so happy to hear you''re loving the Miku figure — she really is stunning in person, isn''t she? Thank you for being such a wonderful part of the OhayoPop community. We can''t wait for you to see what''s coming next! 🌸',
-  'Arigatou, Mei! It makes us so happy to hear you''re loving the Miku figure — she really is stunning in person, isn''t she? Thank you for being such a wonderful part of the OhayoPop community. We can''t wait for you to see what''s coming next! 🌸',
-  95,
-  array[]::text[],
-  '{"steps":[{"step":"claim","status":"complete"},{"step":"classify","status":"complete","result":{"risk_score":1,"sentiment_label":"positive","needs_order_context":false}},{"step":"brand_voice_rag","status":"complete","method":"pgvector","matched_count":2,"real_reply_count":0,"ai_sample_count":2,"similarity_scores":[0.91,0.65],"snippets":["Thank you so much for your kind words! It means the world","Hi there — we''re so sorry to hear your order didn''t arri"]},{"step":"fetch_order_context","status":"skipped"},{"step":"draft","status":"complete","confidence":95},{"step":"guardrails","status":"complete","passed":true,"fired_flags":[]},{"step":"post","status":"complete","posted":true}]}'::jsonb,
-  'auto_post', now() - interval '1 day', null, null, now()
-)
-on conflict (review_id) do update set
-  risk_score       = excluded.risk_score,
-  sentiment_label  = excluded.sentiment_label,
-  agent_reasoning  = excluded.agent_reasoning,
-  draft_reply      = excluded.draft_reply,
-  final_reply      = excluded.final_reply,
-  confidence       = excluded.confidence,
-  risk_flags       = excluded.risk_flags,
-  agent_trace      = excluded.agent_trace,
-  decision         = excluded.decision,
-  auto_posted_at   = excluded.auto_posted_at,
-  reviewed_by      = excluded.reviewed_by,
-  reviewed_at      = excluded.reviewed_at;
-
--- Review 4: 4-star minor packaging issue (auto-posted)
-insert into review_actions (
-  review_id, risk_score, sentiment_label, agent_reasoning,
-  draft_reply, final_reply, confidence, risk_flags, agent_trace,
-  decision, auto_posted_at, reviewed_by, reviewed_at, created_at
-) values (
-  'cccccccc-0004-0000-0000-000000000000',
-  2, 'positive',
-  'Mostly positive review with minor packaging note. No action required, no refund language. Safe to auto-reply with acknowledgment of the feedback.',
-  'Thank you for the thoughtful review, Jordan! We''re so glad the Asuka figure impressed — those wing details are definitely one of our favorites. We''re sorry to hear about the loose accessory; we''re passing this along to our packing team. We hope she looks incredible on display! 🙌',
-  'Thank you for the thoughtful review, Jordan! We''re so glad the Asuka figure impressed — those wing details are definitely one of our favorites. We''re sorry to hear about the loose accessory; we''re passing this along to our packing team. We hope she looks incredible on display! 🙌',
-  88,
-  array[]::text[],
-  '{"steps":[{"step":"claim","status":"complete"},{"step":"classify","status":"complete","result":{"risk_score":2,"sentiment_label":"positive","needs_order_context":false}},{"step":"brand_voice_rag","status":"complete","method":"pgvector","matched_count":2,"real_reply_count":0,"ai_sample_count":2,"similarity_scores":[0.86,0.73],"snippets":["Thank you so much for your kind words! It means the world","Hi there — we''re so sorry to hear your order didn''t arri"]},{"step":"fetch_order_context","status":"skipped"},{"step":"draft","status":"complete","confidence":88},{"step":"guardrails","status":"complete","passed":true,"fired_flags":[]},{"step":"post","status":"complete","posted":true}]}'::jsonb,
-  'auto_post', now() - interval '2 days', null, null, now()
-)
-on conflict (review_id) do update set
-  risk_score       = excluded.risk_score,
-  sentiment_label  = excluded.sentiment_label,
-  agent_reasoning  = excluded.agent_reasoning,
-  draft_reply      = excluded.draft_reply,
-  final_reply      = excluded.final_reply,
-  confidence       = excluded.confidence,
-  risk_flags       = excluded.risk_flags,
-  agent_trace      = excluded.agent_trace,
-  decision         = excluded.decision,
-  auto_posted_at   = excluded.auto_posted_at,
-  reviewed_by      = excluded.reviewed_by,
-  reviewed_at      = excluded.reviewed_at;
-
--- Review 5 (pending) has no review_action — nothing to restore.
-
--- ============================================================
--- 5. Restore the seed agent_run
--- ============================================================
-insert into agent_runs (
-  id, store_id, trigger_type, review_ids,
-  started_at, completed_at,
-  reviews_processed, auto_posted, escalated, failed
-) values (
-  'dddddddd-0001-0000-0000-000000000000',
-  'aaaaaaaa-0001-0000-0000-000000000000',
-  'scheduled',
-  array[
-    'cccccccc-0001-0000-0000-000000000000',
-    'cccccccc-0002-0000-0000-000000000000',
-    'cccccccc-0003-0000-0000-000000000000',
-    'cccccccc-0004-0000-0000-000000000000'
-  ]::uuid[],
-  now() - interval '3 hours',
-  now() - interval '3 hours' + interval '47 seconds',
-  4, 2, 2, 0
-)
-on conflict (id) do update set
-  trigger_type       = excluded.trigger_type,
-  review_ids         = excluded.review_ids,
-  started_at         = excluded.started_at,
-  completed_at       = excluded.completed_at,
-  reviews_processed  = excluded.reviews_processed,
-  auto_posted        = excluded.auto_posted,
-  escalated          = excluded.escalated,
-  failed             = excluded.failed,
-  error_details      = null;
+insert into review_actions (review_id, sentiment_label, agent_reasoning, final_reply, risk_flags, created_at) values
+('cccccccc-0001-0000-0000-000000000000', 'positive', 'Imported historical merchant reply for brand voice grounding.', 'Arigatou, Mina! We are so happy Sakura Miku made it to you safely. We pack every order with collector shelves in mind, so hearing the little note made your day means a lot to us.', array[]::text[], now()),
+('cccccccc-0002-0000-0000-000000000000', 'positive', 'Imported historical merchant reply for brand voice grounding.', 'Thank you for the thoughtful review, Drew. We are thrilled Gojo arrived safely and looked beautiful in person. We are sorry shipping took longer than expected, and we appreciate your patience while your order made its way to you.', array[]::text[], now()),
+('cccccccc-0003-0000-0000-000000000000', 'negative', 'Imported historical merchant reply for brand voice grounding.', 'Hi Alex - we are sorry the collector box arrived crushed. That is frustrating, especially for display pieces. Please message us privately with your order number and photos so our team can look into what happened.', array[]::text[], now());
 
 commit;

@@ -68,7 +68,7 @@ create table reviews (
   status         text not null default 'pending' check (
                    status in (
                      'pending', 'processing', 'auto_posted', 'needs_review',
-                     'reply_pending_manual', 'failed', 'approved', 'rejected'
+                     'reply_pending_manual', 'failed', 'approved', 'rejected', 'imported'
                    )
                  ),
   received_at    timestamptz not null default now(),

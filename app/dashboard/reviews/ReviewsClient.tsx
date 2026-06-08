@@ -45,7 +45,7 @@ function getAction(review: Review): ReviewAction | undefined {
   return review.review_actions
 }
 
-const FILTERS = ['All', 'Escalated', 'Auto-replied'] as const
+const FILTERS = ['All', 'Escalated', 'Auto-replied', 'Imported'] as const
 type Filter = (typeof FILTERS)[number]
 
 function filterReviews(reviews: Review[], filter: Filter): Review[] {
@@ -53,6 +53,8 @@ function filterReviews(reviews: Review[], filter: Filter): Review[] {
     return reviews.filter((r) => r.status === 'needs_review' || r.status === 'reply_pending_manual')
   if (filter === 'Auto-replied')
     return reviews.filter((r) => r.status === 'auto_posted' || r.status === 'approved')
+  if (filter === 'Imported')
+    return reviews.filter((r) => r.status === 'imported')
   return reviews
 }
 
@@ -730,6 +732,7 @@ function StatusBadge({ status, decision }: { status: string; decision?: 'auto_po
       : { bg: 'var(--color-warning-bg)', color: 'var(--color-warning)', label: 'manual post' },
     auto_posted: { bg: 'var(--color-success-bg)', color: 'var(--color-success)', label: 'auto-replied' },
     approved: { bg: 'var(--color-success-bg)', color: 'var(--color-success)', label: 'posted' },
+    imported: { bg: 'var(--color-surface)', color: 'var(--color-muted)', label: 'imported' },
     pending: { bg: 'var(--color-surface)', color: 'var(--color-muted)', label: 'pending' },
     processing: { bg: 'var(--color-warning-bg)', color: 'var(--color-warning)', label: 'processing' },
   }

@@ -19,6 +19,7 @@ export default async function AgentsPage() {
         )
       `)
       .not('status', 'eq', 'pending')
+      .not('status', 'eq', 'imported')
       .order('received_at', { ascending: false })
       .limit(30),
     supabase.from('stores').select('store_name').maybeSingle(),

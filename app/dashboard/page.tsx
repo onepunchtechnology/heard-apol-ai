@@ -32,7 +32,8 @@ export default async function ActivityPage() {
     supabase
       .from('reviews')
       .select('*', { count: 'exact', head: true })
-      .not('status', 'eq', 'pending'),
+      .not('status', 'eq', 'pending')
+      .not('status', 'eq', 'imported'),
     supabase
       .from('stores')
       .select('id', { count: 'exact', head: true }),

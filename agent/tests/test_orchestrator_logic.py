@@ -69,6 +69,20 @@ class TestAtomicClaim(unittest.TestCase):
                       'brand_voice_rag step must be logged in agent_trace for Agents screen')
 
 
+class TestImportedReplyRag(unittest.TestCase):
+    """Imported historical replies must ground future drafts as learned brand voice."""
+
+    def test_imported_final_replies_seed_learned_rag(self):
+        self.assertIn('_load_imported_final_replies', ORCHESTRATOR,
+                      'Orchestrator must load imported review_actions.final_reply values for RAG')
+        self.assertIn('"imported"', ORCHESTRATOR,
+                      'Imported reviews must be included as historical brand voice examples')
+        self.assertIn('"approved"', ORCHESTRATOR,
+                      'Approved human replies must remain eligible as learned brand voice examples')
+        self.assertIn('"learned"', ORCHESTRATOR,
+                      'Imported/approved final replies must be embedded as learned RAG sources')
+
+
 class TestShopifyApiVersion(unittest.TestCase):
     """Shopify API version must be 2026-01 everywhere — 2024-01 is wrong per CLAUDE.md."""
 
