@@ -86,7 +86,7 @@ Multi-platform sellers burn time every morning answering reviews across multiple
 ## Platforms
 
 - **Judge.me** (Shopify review app) — webhook-driven, real-time
-- **Google Business Profile** — poll-driven every 12h
+- **Google Business Profile** — manual-paste mode (agent drafts reply; merchant posts in Google). API mode implemented, pending Google access approval.
 - **Shopify Admin API** — order context on complaint reviews via MCP
 
 ## Stack
