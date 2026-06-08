@@ -81,5 +81,24 @@ export async function POST(
     .update({ final_reply: reply, reviewed_by: user.id, reviewed_at: new Date().toISOString() })
     .eq('review_id', reviewId)
 
+  // Learning loop: add approved reply to brand voice learned_replies (non-blocking)
+  try {
+    const { data: bvData } = await admin
+      .from('brand_voice_config')
+      .select('id, learned_replies')
+      .eq('store_id', review.store_id)
+      .maybeSingle()
+    if (bvData) {
+      const current = (bvData.learned_replies as string[]) ?? []
+      const deduped = [reply, ...current.filter((r: string) => r !== reply)]
+      await admin
+        .from('brand_voice_config')
+        .update({ learned_replies: deduped.slice(0, 20) })
+        .eq('id', bvData.id)
+    }
+  } catch {
+    // Non-critical — never block the approval response
+  }
+
   return NextResponse.json({ ok: true })
 }

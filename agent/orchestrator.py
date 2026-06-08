@@ -2,11 +2,14 @@ import os
 from datetime import datetime, timezone
 
 import httpx
+from google import genai as _genai
 from supabase import create_client, Client
 
 from agents.classifier import ClassifierAgent
 from agents.drafter import DrafterAgent
 from guardrails import check as guardrails_check
+
+_genai_client = _genai.Client()
 
 SUPABASE_URL = os.environ["SUPABASE_URL"]
 SUPABASE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
@@ -105,13 +108,28 @@ class Orchestrator:
         sentiment: str = classification.get("sentiment_label", "neutral")
         reasoning: str = classification.get("agent_reasoning", "")
 
-        # --- 5. Brand Voice RAG — inject top-3 sample replies as grounding context ---
-        rag_snippets = (bv.get("sample_replies") or [])[:3] if bv else []
+        # --- 5. Brand Voice RAG — real merchant replies first, AI-generated samples as fallback ---
+        learned = (bv.get("learned_replies") or [])[:3] if bv else []
+        ai_samples = (bv.get("sample_replies") or []) if bv else []
+        needed = max(0, 3 - len(learned))
+        rag_snippets = learned + ai_samples[:needed]
+
+        # Cold start: no samples of any kind — generate from tone descriptions
+        if not rag_snippets and bv and (bv.get("tone_positive") or bv.get("tone_negative")):
+            generated = await self._generate_cold_start_samples(bv, row["store_id"])
+            rag_snippets = generated[:3]
+            ai_samples = generated  # refresh for count
+
         trace.append(_step(
             "brand_voice_rag", "complete",
             matched_count=len(rag_snippets),
+            real_reply_count=len(learned),
+            ai_sample_count=len(rag_snippets) - len(learned),
             snippets=[s[:60] for s in rag_snippets],
         ))
+
+        # Inject prioritized snippets so the drafter reads them from brand_voice.sample_replies
+        bv = {**(bv or {}), "sample_replies": rag_snippets}
 
         # --- 6. Draft — DrafterAgent calls Shopify MCP for order context when needed ---
         try:
@@ -192,10 +210,61 @@ class Orchestrator:
             self._set_status(review_id, "auto_posted")
             trace.append(_step("post", "complete"))
             print(f"[{review_id}] auto_posted")
+            self._add_learned_reply(row["store_id"], draft_reply)
         else:
             self._set_status(review_id, "reply_pending_manual")
             trace.append(_step("post", "warning", reason="post_failed_or_unsupported_source"))
             print(f"[{review_id}] auto_post failed → reply_pending_manual")
+
+    async def _generate_cold_start_samples(self, bv: dict, store_id: str) -> list[str]:
+        """Generate 3 synthetic brand voice sample replies when no real examples exist yet."""
+        tone_pos = bv.get("tone_positive") or bv.get("tone_description") or "warm and friendly"
+        tone_neg = bv.get("tone_negative") or bv.get("tone_description") or "empathetic and solution-focused"
+        prompt = (
+            "You are a brand voice consultant. An e-commerce store needs sample reply templates "
+            "to ground an AI reply agent in their voice.\n\n"
+            f"Positive review tone: {tone_pos}\n"
+            f"Complaint/negative review tone: {tone_neg}\n\n"
+            "Write exactly 3 sample replies this store might send:\n"
+            "1. A reply to a delighted 5-star review\n"
+            "2. A reply to a 4-star review with one mild concern\n"
+            "3. A reply to a frustrated 1-2 star complaint\n\n"
+            "Rules: each reply under 120 words, no placeholders, no markdown, genuine brand voice.\n"
+            "Format: return only the 3 reply texts separated by the exact string '---' on its own line. "
+            "No numbering, no labels."
+        )
+        try:
+            response = await _genai_client.aio.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt,
+            )
+            samples = [s.strip() for s in (response.text or "").split("---") if s.strip()][:3]
+            if samples:
+                self._db.table("brand_voice_config").update(
+                    {"sample_replies": samples}
+                ).eq("store_id", store_id).execute()
+                print(f"[brand_voice_rag] cold start: generated {len(samples)} samples for store {store_id}")
+            return samples
+        except Exception as exc:
+            print(f"[brand_voice_rag] cold start generation failed: {exc}")
+            return []
+
+    def _add_learned_reply(self, store_id: str, reply_text: str) -> None:
+        """Prepend a real posted reply to brand_voice_config.learned_replies (capped at 20)."""
+        bv = (
+            self._db.table("brand_voice_config")
+            .select("id, learned_replies")
+            .eq("store_id", store_id)
+            .maybe_single()
+            .execute()
+        ).data
+        if not bv:
+            return
+        current = bv.get("learned_replies") or []
+        deduped = [reply_text] + [r for r in current if r != reply_text]
+        self._db.table("brand_voice_config").update(
+            {"learned_replies": deduped[:20]}
+        ).eq("id", bv["id"]).execute()
 
     def _set_status(self, review_id: str, status: str) -> None:
         self._db.table("reviews").update({"status": status, "updated_at": _now()}).eq("id", review_id).execute()

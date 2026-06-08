@@ -58,7 +58,7 @@ Brand Voice Config:
 - Tone: {tone} ({"complaints and negative reviews" if is_negative else "positive and neutral reviews"})
 - Description: {brand_voice.get('tone_description', '')}
 - Prohibited phrases (NEVER use): {json.dumps(brand_voice.get('rules', []))}
-- Sample replies (brand voice grounding): {json.dumps(brand_voice.get('sample_replies', [])[:3])}
+- Voice examples — real merchant replies when available, AI-generated otherwise (match this style closely): {json.dumps(brand_voice.get('sample_replies', [])[:3])}
 """
 
         prompt = f"""{brand_config}

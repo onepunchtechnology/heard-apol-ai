@@ -71,6 +71,7 @@ export type Database = {
           id: string
           store_id: string
           sample_replies: string[]
+          learned_replies: string[]
           rules: string[]
           tone_description: string | null
           tone_positive: string | null
@@ -81,6 +82,7 @@ export type Database = {
           id?: string
           store_id: string
           sample_replies?: string[]
+          learned_replies?: string[]
           rules?: string[]
           tone_description?: string | null
           tone_positive?: string | null
@@ -91,6 +93,7 @@ export type Database = {
           id?: string
           store_id?: string
           sample_replies?: string[]
+          learned_replies?: string[]
           rules?: string[]
           tone_description?: string | null
           tone_positive?: string | null
