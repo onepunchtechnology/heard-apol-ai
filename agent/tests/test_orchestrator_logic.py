@@ -49,6 +49,10 @@ class TestAutoPostThreshold(unittest.TestCase):
         self.assertIn('should_auto_post(risk_score', ORCHESTRATOR,
                       'process_review must delegate the auto-post decision to should_auto_post()')
 
+    def test_classifier_risk_zero_is_preserved(self):
+        self.assertNotIn('classification.get("risk_score", 5) or 5', ORCHESTRATOR,
+                         'risk_score=0 is valid and must not be coerced to fallback risk 5')
+
 
 class TestAtomicClaim(unittest.TestCase):
     """Orchestrator must use atomic claim RPC to prevent double-processing."""

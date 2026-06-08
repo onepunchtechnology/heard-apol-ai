@@ -116,7 +116,7 @@ class Orchestrator:
             self._set_status(review_id, "needs_review")
             return
 
-        risk_score: int = int(classification.get("risk_score", 5) or 5)
+        risk_score: int = int(classification.get("risk_score", 5))
         sentiment: str = classification.get("sentiment_label", "neutral")
         reasoning: str = classification.get("agent_reasoning", "")
 

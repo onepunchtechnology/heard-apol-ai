@@ -255,6 +255,24 @@ class TestGuardrailsFalsePositives(unittest.TestCase):
         self.assertNotIn('profanity', result.fired_flags)
         self.assertTrue(result.passed)
 
+    def test_better_in_person_than_photos_does_not_trigger_competitor(self):
+        reply = (
+            "Arigatou, Mei! We are so happy the Miku figure looks even better "
+            "in person than in the photos. Thank you for ordering with us again."
+        )
+        result = check(reply)
+        self.assertNotIn('competitor_mention', result.fired_flags)
+        self.assertTrue(result.passed)
+
+    def test_try_product_name_does_not_trigger_competitor(self):
+        reply = (
+            "Arigatou, Mei! We are so happy you loved this order. "
+            "We cannot wait for you to try Miku in your collection."
+        )
+        result = check(reply)
+        self.assertNotIn('competitor_mention', result.fired_flags)
+        self.assertTrue(result.passed)
+
 
 if __name__ == '__main__':
     unittest.main()
