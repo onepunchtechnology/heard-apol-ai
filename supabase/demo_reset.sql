@@ -74,8 +74,8 @@ insert into review_actions (
   'High-value ($89) item arrived damaged. Customer explicitly demands a refund. Risk 8: explicit refund demand + product defect claim. Guardrail would flag any refund promise. Escalating to human review.',
   'Hi Tyler — we are so sorry to hear your Rem figure arrived damaged. This is absolutely not the standard we hold ourselves to, and we want to make this right. Please email us at support@heardstore.demo with a photo and your order number and we will take care of you right away.',
   null, 72,
-  array['refund_offer_risk'],
-  '{"steps":[{"step":"claim","status":"complete"},{"step":"classify","status":"complete","result":{"risk_score":8,"sentiment_label":"negative","needs_order_context":true}},{"step":"brand_voice_rag","status":"complete","method":"pgvector","matched_count":2,"real_reply_count":0,"ai_sample_count":2,"similarity_scores":[0.88,0.71],"snippets":["Thank you so much for your kind words! It means the world","Hi there — we''re so sorry to hear your order didn''t arri"]},{"step":"fetch_order_context","status":"complete","found":true},{"step":"draft","status":"complete","confidence":72},{"step":"guardrails","status":"warning","passed":false,"fired_flags":["refund_offer_risk"]},{"step":"post","status":"skipped"}]}'::jsonb,
+  array['refund_offer'],
+  '{"steps":[{"step":"claim","status":"complete"},{"step":"classify","status":"complete","result":{"risk_score":8,"sentiment_label":"negative","needs_order_context":true}},{"step":"brand_voice_rag","status":"complete","method":"pgvector","matched_count":2,"real_reply_count":0,"ai_sample_count":2,"similarity_scores":[0.88,0.71],"snippets":["Thank you so much for your kind words! It means the world","Hi there — we''re so sorry to hear your order didn''t arri"]},{"step":"fetch_order_context","status":"complete","found":true},{"step":"draft","status":"complete","confidence":72},{"step":"guardrails","status":"warning","passed":false,"fired_flags":["refund_offer"]},{"step":"post","status":"skipped"}]}'::jsonb,
   'escalate', null, null, null, now()
 )
 on conflict (review_id) do update set

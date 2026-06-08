@@ -76,4 +76,9 @@ class ClassifierAgent:
             cleaned = cleaned.split("```")[1]
             if cleaned.startswith("json"):
                 cleaned = cleaned[4:]
+        cleaned = cleaned.strip()
+        if cleaned and not cleaned.startswith("{"):
+            start = cleaned.find("{")
+            if start != -1:
+                cleaned = cleaned[start:]
         return json.loads(cleaned.strip())
