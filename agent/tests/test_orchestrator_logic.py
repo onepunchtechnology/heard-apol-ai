@@ -119,6 +119,27 @@ class TestTwoToneBrandVoice(unittest.TestCase):
                       'Orchestrator must pass full brand_voice dict to drafter')
 
 
+class TestDrafterCredentiallessOrderContext(unittest.TestCase):
+    """Stores without order lookup credentials must still draft."""
+
+    def setUp(self):
+        self.drafter = (AGENT_DIR / 'agents' / 'drafter.py').read_text()
+
+    def test_drafter_detects_order_context_without_credentials(self):
+        self.assertIn('needs_context and not has_order_tool', self.drafter,
+                      'Drafter must explicitly handle reviews that need order context when no MCP tool is available')
+
+    def test_drafter_tells_model_not_to_call_missing_tool(self):
+        self.assertIn('Do not call fetch_order_context', self.drafter,
+                      'Drafter prompt must not ask Gemini to call a missing MCP tool')
+
+    def test_drafter_has_non_empty_fallback(self):
+        self.assertIn('_fallback_reply', self.drafter,
+                      'Drafter must have a deterministic non-empty fallback for empty model drafts')
+        self.assertIn('draft_reply.strip()', self.drafter,
+                      'Drafter must treat whitespace-only model replies as empty')
+
+
 class TestShouldAutoPost(unittest.TestCase):
     """Behavioral four-corner tests for the auto-post/escalate decision boundary.
 

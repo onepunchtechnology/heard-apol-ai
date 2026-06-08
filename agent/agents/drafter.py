@@ -49,6 +49,22 @@ Rules:
 - Be warm, genuine, and human — never corporate or robotic"""
 
 
+def _fallback_reply(review: dict, classification: dict) -> str:
+    name = review.get("reviewer_name") or "there"
+    product = review.get("product_title") or "your order"
+    sentiment = classification.get("sentiment_label")
+    if sentiment == "positive":
+        return (
+            f"Thank you so much, {name}! We are so happy to hear you loved {product}. "
+            "We put a lot of care into every order, and it means a lot to know it arrived well."
+        )
+    return (
+        f"Hi {name}, thank you for letting us know about {product}. "
+        "We are sorry this was not the experience you expected. We are holding this for our team "
+        "to review carefully so we can respond with the right next step."
+    )
+
+
 class DrafterAgent:
     async def draft(
         self,
@@ -72,6 +88,21 @@ Brand Voice Config:
 - Voice examples — real merchant replies when available, AI-generated otherwise (match this style closely): {json.dumps(brand_voice.get('sample_replies', [])[:3])}
 """
 
+        needs_context = classification.get("needs_order_context", False)
+        has_order_tool = bool(needs_context and shop_domain and access_token)
+        if needs_context and not has_order_tool:
+            context_instruction = (
+                "This review would normally need order context, but no order lookup tool is available "
+                "for this store yet. Do not call fetch_order_context. Draft a careful public reply "
+                "that acknowledges the issue, avoids promises or refunds, and routes the review for human follow-up."
+            )
+        elif has_order_tool:
+            context_instruction = (
+                "Needs order context is true. Call fetch_order_context before drafting, then output the JSON reply."
+            )
+        else:
+            context_instruction = "Order context is not needed. Output the JSON reply."
+
         prompt = f"""{brand_config}
 Review to reply to:
 - Source: {review.get('source')}
@@ -85,11 +116,10 @@ Classification:
 - Needs order context: {classification.get('needs_order_context', False)}
 - Reasoning: {classification.get('agent_reasoning')}
 
-If needs_order_context is true, call fetch_order_context before drafting. Then output the JSON reply."""
+{context_instruction}"""
 
         message = types.Content(role="user", parts=[types.Part(text=prompt)])
 
-        needs_context = classification.get("needs_order_context", False)
         env = {
             **os.environ,
             "SHOPIFY_SHOP_DOMAIN": shop_domain or "",
@@ -101,7 +131,7 @@ If needs_order_context is true, call fetch_order_context before drafting. Then o
         # not just the complaint path.
         toolset = None
         tools: list = []
-        if needs_context and shop_domain and access_token:
+        if has_order_tool:
             toolset = McpToolset(
                 connection_params=StdioConnectionParams(
                     server_params=StdioServerParameters(
@@ -160,4 +190,10 @@ If needs_order_context is true, call fetch_order_context before drafting. Then o
             start = cleaned.find("{")
             if start != -1:
                 cleaned = cleaned[start:]
-        return json.loads(cleaned.strip())
+        result = json.loads(cleaned.strip())
+        draft_reply = str(result.get("draft_reply") or "")
+        if not draft_reply.strip():
+            result["draft_reply"] = _fallback_reply(review, classification)
+            result["confidence"] = result.get("confidence") or 50
+            result["order_context"] = result.get("order_context") or None
+        return result
