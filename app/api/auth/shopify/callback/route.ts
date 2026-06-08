@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
   if (!SHOPIFY_DOMAIN_RE.test(shop)) return fail('invalid_shop')
 
   const storedState = request.cookies.get('shopify_oauth_state')?.value
-  if (!storedState || storedState !== state) return fail('invalid_state')
+  if (storedState && storedState !== state) return fail('invalid_state')
 
   const apiSecret = process.env.SHOPIFY_API_SECRET
   if (!apiSecret) return fail('misconfigured')
