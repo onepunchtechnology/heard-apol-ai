@@ -1,6 +1,21 @@
 import { createClient } from '@/lib/supabase/server'
 import ActivityClient from './ActivityClient'
 
+function bucketByDay(rows: { received_at: string }[]): number[] {
+  const today = new Date()
+  return Array.from({ length: 7 }, (_, i) => {
+    const dayStart = new Date(today)
+    dayStart.setDate(dayStart.getDate() - (6 - i))
+    dayStart.setHours(0, 0, 0, 0)
+    const dayEnd = new Date(dayStart)
+    dayEnd.setDate(dayEnd.getDate() + 1)
+    return rows.filter(r => {
+      const t = new Date(r.received_at)
+      return t >= dayStart && t < dayEnd
+    }).length
+  })
+}
+
 export default async function ActivityPage() {
   const supabase = await createClient()
 
@@ -8,32 +23,21 @@ export default async function ActivityPage() {
 
   const [
     { data: latestRun },
-    { count: autoPostedCount },
-    { count: escalatedCount },
-    { count: totalCount },
+    { data: allStatuses },
     { count: storeCount },
     { data: recentEscalated },
-    { data: trendRows },
+    { data: repliesTrendRows },
+    { data: reviewsTrendRows },
   ] = await Promise.all([
     supabase
       .from('agent_runs')
-      .select('*')
+      .select('completed_at')
       .order('started_at', { ascending: false })
       .limit(1)
       .maybeSingle(),
     supabase
       .from('reviews')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'auto_posted'),
-    supabase
-      .from('reviews')
-      .select('*', { count: 'exact', head: true })
-      .in('status', ['needs_review', 'reply_pending_manual']),
-    supabase
-      .from('reviews')
-      .select('*', { count: 'exact', head: true })
-      .not('status', 'eq', 'pending')
-      .not('status', 'eq', 'imported'),
+      .select('status'),
     supabase
       .from('stores')
       .select('id', { count: 'exact', head: true }),
@@ -51,37 +55,36 @@ export default async function ActivityPage() {
       .select('received_at')
       .eq('status', 'auto_posted')
       .gte('received_at', sevenDaysAgo),
+    supabase
+      .from('reviews')
+      .select('received_at')
+      .not('status', 'eq', 'imported')
+      .gte('received_at', sevenDaysAgo),
   ])
 
-  // Bucket auto-posted count by day for the last 7 days (Mon=0 ... Sun=6 relative to today)
-  const today = new Date()
-  const trend = Array.from({ length: 7 }, (_, i) => {
-    const dayStart = new Date(today)
-    dayStart.setDate(dayStart.getDate() - (6 - i))
-    dayStart.setHours(0, 0, 0, 0)
-    const dayEnd = new Date(dayStart)
-    dayEnd.setDate(dayEnd.getDate() + 1)
-    return (trendRows ?? []).filter((r) => {
-      const t = new Date(r.received_at)
-      return t >= dayStart && t < dayEnd
-    }).length
-  })
+  const statusCounts = (allStatuses ?? []).reduce(
+    (acc, r) => {
+      if (r.status === 'pending') acc.pending++
+      else if (r.status === 'processing') acc.processing++
+      else if (r.status === 'needs_review' || r.status === 'reply_pending_manual') acc.needsAttention++
+      else if (r.status === 'auto_posted') acc.autoPosted++
+      else if (r.status === 'failed') acc.failed++
+      else if (r.status === 'imported') acc.imported++
+      return acc
+    },
+    { pending: 0, processing: 0, needsAttention: 0, autoPosted: 0, failed: 0, imported: 0 }
+  )
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  const stats = {
-    autoPosted: autoPostedCount ?? 0,
-    escalated: escalatedCount ?? 0,
-    total: totalCount ?? 0,
-    lastRunAt: latestRun ? (latestRun as { completed_at: string | null }).completed_at : null,
-  }
-
   return (
     <ActivityClient
-      stats={stats}
-      recentEscalated={recentEscalated ?? []}
-      trend={trend}
+      lastRunAt={(latestRun as { completed_at: string | null } | null)?.completed_at ?? null}
       storeCount={storeCount ?? 1}
+      statusCounts={statusCounts}
+      reviewsTrend={bucketByDay(reviewsTrendRows ?? [])}
+      repliesTrend={bucketByDay(repliesTrendRows ?? [])}
+      recentEscalated={recentEscalated ?? []}
       isDemoAccount={user?.email === 'google-hackathon-demo-9c25d0@apol.ai'}
     />
   )

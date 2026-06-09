@@ -101,7 +101,11 @@ async function triggerAgent(reviewId: string, storeId: string) {
   const url = `https://run.googleapis.com/v2/projects/${project}/locations/${region}/jobs/${jobName}:run`
 
   const { GoogleAuth } = await import('google-auth-library')
-  const auth = new GoogleAuth({ scopes: 'https://www.googleapis.com/auth/cloud-platform' })
+  const saKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY
+  const auth = new GoogleAuth({
+    credentials: saKey ? JSON.parse(saKey) : undefined,
+    scopes: 'https://www.googleapis.com/auth/cloud-platform',
+  })
   const client = await auth.getClient()
   const token = await client.getAccessToken()
 
