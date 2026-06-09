@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import NavItem from '@/components/ui/NavItem'
+import { Toaster } from '@/components/ui/sonner'
 
 export const dynamic = 'force-dynamic'
 
@@ -64,6 +65,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <main className="flex-1 overflow-y-auto" style={{ backgroundColor: 'var(--color-bg)' }}>
         {children}
       </main>
+      <Toaster position="bottom-right" />
     </div>
   )
 }
