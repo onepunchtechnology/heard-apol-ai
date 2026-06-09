@@ -53,6 +53,29 @@
   --duration-medium: 250ms;
 }
 
+/* shadcn semantic tokens — mapped to Heard carnation-pink palette */
+/* HSL values: validate each with browser DevTools color picker before shipping */
+:root {
+  --background:           0 0% 100%;
+  --foreground:           338 100% 9%;
+  --card:                 0 0% 100%;
+  --card-foreground:      338 100% 9%;
+  --primary:              333 100% 73%;
+  --primary-foreground:   338 100% 9%;
+  --secondary:            330 100% 97%;
+  --secondary-foreground: 338 100% 9%;
+  --muted:                330 100% 97%;
+  --muted-foreground:     330 100% 27%;
+  --accent:               330 100% 91%;
+  --accent-foreground:    338 100% 9%;
+  --destructive:          14 42% 38%;
+  --destructive-foreground: 0 0% 100%;
+  --border:               330 100% 87%;
+  --input:                330 100% 87%;
+  --ring:                 330 100% 62%;
+  --radius:               0.5rem;
+}
+
 * {
   box-sizing: border-box;
 }
