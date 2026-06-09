@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { cn } from '@/lib/utils'
 
 interface NavItemProps {
   href: string
@@ -16,17 +17,13 @@ export default function NavItem({ href, label, exact }: NavItemProps) {
   return (
     <Link
       href={href}
-      className="flex items-center px-6 transition-colors"
-      style={{
-        height: '44px',
-        fontSize: 'var(--text-base)',
-        color: 'var(--color-text)',
-        fontWeight: isActive ? 500 : 400,
-        backgroundColor: isActive ? 'var(--color-accent-dim)' : 'transparent',
-        borderLeft: isActive ? '3px solid var(--color-text)' : '3px solid transparent',
-        transitionDuration: 'var(--duration-short)',
-        transitionTimingFunction: 'var(--ease-out)',
-      }}
+      className={cn(
+        'flex h-11 flex-shrink-0 items-center border-b-[3px] px-5 text-base text-text transition-colors duration-short ease-out md:border-b-0 md:border-l-[3px] md:px-6',
+        'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-text',
+        isActive
+          ? 'border-text bg-accent-dim font-medium'
+          : 'border-transparent bg-transparent font-normal'
+      )}
     >
       {label}
     </Link>
