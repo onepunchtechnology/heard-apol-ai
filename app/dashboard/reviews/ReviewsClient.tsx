@@ -1,8 +1,20 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
-import { formatDistanceToNow } from '@/lib/utils'
+import { cn, formatDistanceToNow } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Textarea } from '@/components/ui/textarea'
+
+const HEARD_FOCUS_CLASS =
+  'focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-dim focus-visible:outline-offset-2'
+
+const BADGE_BASE_CLASS =
+  'shadow-none font-normal rounded-sm text-[11px] py-[3px] px-2 leading-none border-transparent flex-shrink-0'
 
 interface OrderContext {
   order_name: string
@@ -208,27 +220,23 @@ export default function ReviewsClient({ reviews: initialReviews, replyMode }: { 
           ) : null}
 
           {/* Filter tabs */}
-          <div className="flex gap-1 mt-3">
-            {FILTERS.map((f) => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                style={{
-                  fontSize: 'var(--text-xs)',
-                  height: '28px',
-                  padding: '0 10px',
-                  borderRadius: 'var(--radius-sm)',
-                  border: 'none',
-                  cursor: 'pointer',
-                  backgroundColor: filter === f ? 'var(--color-surface-2)' : 'transparent',
-                  color: filter === f ? 'var(--color-text)' : 'var(--color-muted)',
-                  fontWeight: filter === f ? 500 : 400,
-                  transition: `background-color var(--duration-short) var(--ease-out)`,
-                }}
-              >
-                {f}
-              </button>
-            ))}
+          <div className="mt-3">
+            <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
+              <TabsList className="bg-transparent gap-1 p-0 h-auto">
+                {FILTERS.map((f) => (
+                  <TabsTrigger
+                    key={f}
+                    value={f}
+                    className={cn(
+                      'rounded-sm h-7 text-xs font-normal shadow-none data-[state=active]:bg-surface-2 data-[state=active]:text-text data-[state=active]:font-medium data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted',
+                      HEARD_FOCUS_CLASS
+                    )}
+                  >
+                    {f}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
           </div>
         </div>
 
@@ -265,7 +273,7 @@ export default function ReviewsClient({ reviews: initialReviews, replyMode }: { 
               <button
                 key={review.id}
                 onClick={() => setSelectedId(review.id)}
-                className="w-full text-left border-b"
+                className={cn('w-full text-left border-b', HEARD_FOCUS_CLASS)}
                 style={{
                   borderColor: 'var(--color-border)',
                   borderLeft: justPosted
@@ -400,6 +408,7 @@ function ReviewDetail({
     })
     if (res.ok) {
       setPosted(true)
+      toast('Reply posted to Judge.me')
       onPosted()
     } else {
       const body = await res.json().catch(() => ({}))
@@ -448,40 +457,35 @@ function ReviewDetail({
 
       {/* Order context */}
       {action?.order_context && (
-        <div
-          className="rounded-md px-4 py-3 mb-4"
-          style={{
-            backgroundColor: 'var(--color-surface)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 'var(--radius-md)',
-          }}
-        >
-          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text)', fontWeight: 500 }}>
-            {action.order_context.order_name
-              ? `Order ${action.order_context.order_name}`
-              : 'Order'}
-            {' · '}
-            {action.order_context.fulfillment_status === 'fulfilled'
-              ? 'Delivered'
-              : action.order_context.fulfillment_status ?? 'Unfulfilled'}
-            {(() => {
-              const d = action.order_context.created_at
-                ? new Date(action.order_context.created_at)
-                : null
-              return d && !isNaN(d.getTime())
-                ? ` · ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
-                : null
-            })()}
-          </p>
-          {Array.isArray(action.order_context.line_items) &&
-            action.order_context.line_items.length > 0 && (
-              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', marginTop: '4px' }}>
-                {action.order_context.line_items
-                  .map((i) => `${i.title} ×${i.quantity}`)
-                  .join(', ')}
-              </p>
-            )}
-        </div>
+        <Card className="mb-4 rounded-md border-border bg-surface shadow-none">
+          <CardContent className="px-4 py-3">
+            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text)', fontWeight: 500 }}>
+              {action.order_context.order_name
+                ? `Order ${action.order_context.order_name}`
+                : 'Order'}
+              {' · '}
+              {action.order_context.fulfillment_status === 'fulfilled'
+                ? 'Delivered'
+                : action.order_context.fulfillment_status ?? 'Unfulfilled'}
+              {(() => {
+                const d = action.order_context.created_at
+                  ? new Date(action.order_context.created_at)
+                  : null
+                return d && !isNaN(d.getTime())
+                  ? ` · ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+                  : null
+              })()}
+            </p>
+            {Array.isArray(action.order_context.line_items) &&
+              action.order_context.line_items.length > 0 && (
+                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', marginTop: '4px' }}>
+                  {action.order_context.line_items
+                    .map((i) => `${i.title} ×${i.quantity}`)
+                    .join(', ')}
+                </p>
+              )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Draft reply */}
@@ -493,20 +497,9 @@ function ReviewDetail({
               Draft reply
             </span>
             {action.confidence !== undefined && (
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  lineHeight: 1,
-                  fontSize: 'var(--text-xs)',
-                  backgroundColor: 'var(--color-success-bg)',
-                  color: 'var(--color-success)',
-                  padding: '3px 6px',
-                  borderRadius: 'var(--radius-sm)',
-                }}
-              >
+              <Badge className={cn(BADGE_BASE_CLASS, 'bg-success-bg text-success hover:bg-success-bg')}>
                 {action.confidence}% confidence
-              </span>
+              </Badge>
             )}
             <span
               style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', opacity: 0.7 }}
@@ -515,21 +508,15 @@ function ReviewDetail({
             </span>
           </div>
 
-          <textarea
+          <Textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             rows={5}
-            className="w-full rounded-md px-4 py-3 resize-none"
-            style={{
-              backgroundColor: 'var(--color-surface)',
-              border: editMode ? '1px solid var(--color-accent-dim)' : '1px solid var(--color-border)',
-              borderRadius: 'var(--radius-md)',
-              fontSize: 'var(--text-sm)',
-              color: 'var(--color-text)',
-              fontFamily: 'inherit',
-              outline: 'none',
-              transition: `border-color var(--duration-short) var(--ease-out)`,
-            }}
+            className={cn(
+              'bg-surface text-sm resize-none font-sans outline-none transition-colors',
+              HEARD_FOCUS_CLASS,
+              editMode ? 'border-accent-dim' : 'border-border'
+            )}
             onFocus={() => setEditMode(true)}
             onBlur={() => setEditMode(false)}
           />
@@ -539,6 +526,7 @@ function ReviewDetail({
               AI-generated · {review.source === 'judgeme' ? 'Judge.me' : 'Google'} brand voice
             </p>
             <button
+              className={HEARD_FOCUS_CLASS}
               style={{
                 background: 'none',
                 border: 'none',
@@ -557,57 +545,32 @@ function ReviewDetail({
       {/* Action buttons */}
       {!posted && action && (
         <div className="flex items-center gap-3">
-          <button
+          <Button
+            variant="ghost"
             onClick={handleReject}
-            style={{
-              fontSize: 'var(--text-sm)',
-              color: 'var(--color-muted)',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: '0 4px',
-            }}
+            className={cn('text-muted hover:text-muted hover:bg-transparent text-sm shadow-none px-1', HEARD_FOCUS_CLASS)}
           >
             Skip
-          </button>
+          </Button>
 
-          <button
+          <Button
+            variant="outline"
             onClick={() => setEditMode(true)}
-            style={{
-              fontSize: 'var(--text-sm)',
-              color: 'var(--color-text)',
-              background: 'none',
-              border: '1px solid var(--color-border)',
-              borderRadius: 'var(--radius-md)',
-              cursor: 'pointer',
-              padding: '7px 16px',
-              transition: `border-color var(--duration-short) var(--ease-out)`,
-            }}
+            className={cn('border-border text-text hover:bg-surface hover:text-text text-sm shadow-none', HEARD_FOCUS_CLASS)}
           >
             Request Edit
-          </button>
+          </Button>
 
           {isGoogleManual ? (
             <ManualPasteButton reviewId={review.id} draft={draft} onPosted={onPosted} />
           ) : (
-            <button
+            <Button
               onClick={handleApprove}
               disabled={loading}
-              style={{
-                backgroundColor: 'var(--color-accent)',
-                color: 'var(--color-text)',
-                border: 'none',
-                borderRadius: 'var(--radius-md)',
-                fontSize: 'var(--text-sm)',
-                fontWeight: 500,
-                cursor: loading ? 'not-allowed' : 'pointer',
-                opacity: loading ? 0.5 : 1,
-                padding: '8px 20px',
-                transition: `opacity var(--duration-short) var(--ease-out)`,
-              }}
+              className={cn('bg-accent text-text hover:bg-accent/90 text-sm font-medium shadow-none', HEARD_FOCUS_CLASS)}
             >
               {loading ? 'Posting...' : 'Approve & Post'}
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -657,37 +620,24 @@ function ManualPasteButton({
 
   return (
     <div className="flex items-center gap-2">
-      <button
+      <Button
         onClick={handleCopy}
-        style={{
-          backgroundColor: 'var(--color-accent)',
-          color: 'var(--color-text)',
-          border: 'none',
-          borderRadius: 'var(--radius-md)',
-          fontSize: 'var(--text-sm)',
-          cursor: 'pointer',
-          padding: '8px 16px',
-        }}
+        className={cn('bg-accent text-text hover:bg-accent/90 text-sm font-medium shadow-none', HEARD_FOCUS_CLASS)}
       >
         Copy &amp; Post to Google
-      </button>
+      </Button>
       {step === 'copied' && (
         <div className="flex items-center gap-2">
           <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)' }}>
             Copied. Did you post it?
           </span>
-          <button
+          <Button
+            variant="ghost"
             onClick={handleMarkPosted}
-            style={{
-              color: 'var(--color-muted)',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: 'var(--text-xs)',
-            }}
+            className={cn('text-muted hover:text-muted hover:bg-transparent text-xs shadow-none px-1 h-auto', HEARD_FOCUS_CLASS)}
           >
             Mark as posted
-          </button>
+          </Button>
         </div>
       )}
     </div>
@@ -707,58 +657,32 @@ function PlatformBadge({ source }: { source: string }) {
   const label =
     source === 'judgeme' ? 'Judge.me' : source === 'google_business' ? 'Google' : source
   return (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        lineHeight: 1,
-        fontSize: 'var(--text-xs)',
-        backgroundColor: 'var(--color-surface)',
-        color: 'var(--color-muted)',
-        padding: '3px 6px',
-        borderRadius: 'var(--radius-sm)',
-        border: '1px solid var(--color-border)',
-        flexShrink: 0,
-      }}
-    >
+    <Badge className="shadow-none font-normal rounded-sm text-[11px] py-[3px] px-1.5 leading-none border-border bg-surface text-muted hover:bg-surface flex-shrink-0">
       {label}
-    </span>
+    </Badge>
   )
 }
 
 function StatusBadge({ status, decision }: { status: string; decision?: 'auto_post' | 'escalate' | null }) {
   const isManualHold = (status === 'needs_review' || status === 'reply_pending_manual') && decision === 'auto_post'
 
-  const map: Record<string, { bg: string; color: string; label: string }> = {
+  const map: Record<string, { className: string; label: string }> = {
     needs_review: isManualHold
-      ? { bg: 'var(--color-surface-2)', color: 'var(--color-muted)', label: 'awaiting approval' }
-      : { bg: 'var(--color-escalate-bg)', color: 'var(--color-escalate)', label: 'escalated' },
+      ? { className: 'bg-surface-2 text-muted hover:bg-surface-2', label: 'awaiting approval' }
+      : { className: 'bg-escalate-bg text-escalate hover:bg-escalate-bg', label: 'escalated' },
     reply_pending_manual: isManualHold
-      ? { bg: 'var(--color-surface-2)', color: 'var(--color-muted)', label: 'awaiting approval' }
-      : { bg: 'var(--color-warning-bg)', color: 'var(--color-warning)', label: 'manual post' },
-    auto_posted: { bg: 'var(--color-success-bg)', color: 'var(--color-success)', label: 'auto-replied' },
-    approved: { bg: 'var(--color-success-bg)', color: 'var(--color-success)', label: 'posted' },
-    imported: { bg: 'var(--color-surface)', color: 'var(--color-muted)', label: 'imported' },
-    pending: { bg: 'var(--color-surface)', color: 'var(--color-muted)', label: 'pending' },
-    processing: { bg: 'var(--color-warning-bg)', color: 'var(--color-warning)', label: 'processing' },
+      ? { className: 'bg-surface-2 text-muted hover:bg-surface-2', label: 'awaiting approval' }
+      : { className: 'bg-warning-bg text-warning hover:bg-warning-bg', label: 'manual post' },
+    auto_posted: { className: 'bg-success-bg text-success hover:bg-success-bg', label: 'auto-replied' },
+    approved: { className: 'bg-success-bg text-success hover:bg-success-bg', label: 'posted' },
+    imported: { className: 'bg-surface text-muted hover:bg-surface', label: 'imported' },
+    pending: { className: 'bg-surface text-muted hover:bg-surface', label: 'pending' },
+    processing: { className: 'bg-warning-bg text-warning hover:bg-warning-bg pulse', label: 'processing' },
   }
-  const cfg = map[status] ?? { bg: 'var(--color-surface)', color: 'var(--color-muted)', label: status }
+  const cfg = map[status] ?? { className: 'bg-surface text-muted hover:bg-surface', label: status }
   return (
-    <span
-      className={status === 'processing' ? 'pulse' : undefined}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        lineHeight: 1,
-        fontSize: 'var(--text-xs)',
-        backgroundColor: cfg.bg,
-        color: cfg.color,
-        padding: '3px 6px',
-        borderRadius: 'var(--radius-sm)',
-        flexShrink: 0,
-      }}
-    >
+    <Badge className={cn(BADGE_BASE_CLASS, cfg.className)}>
       {cfg.label}
-    </span>
+    </Badge>
   )
 }
