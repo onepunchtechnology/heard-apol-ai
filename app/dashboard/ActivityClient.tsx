@@ -377,10 +377,13 @@ function EscalationQueue({ reviews }: { reviews: EscalatedReview[] }) {
           </h2>
           {reviews.length > 0 && (
             <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              lineHeight: 1,
               fontSize: 'var(--text-xs)',
               backgroundColor: 'var(--color-escalate-bg)',
               color: 'var(--color-escalate)',
-              padding: '2px 8px',
+              padding: '3px 8px',
               borderRadius: 'var(--radius-sm)',
               fontWeight: 500,
             }}>
@@ -391,7 +394,7 @@ function EscalationQueue({ reviews }: { reviews: EscalatedReview[] }) {
         {reviews.length > 0 && (
           <a
             href="/dashboard/reviews"
-            style={{ fontSize: 'var(--text-sm)', color: 'var(--color-accent-dim)', textDecoration: 'none' }}
+            style={{ fontSize: 'var(--text-sm)', color: 'var(--color-muted)', textDecoration: 'none' }}
           >
             View all →
           </a>
@@ -402,7 +405,7 @@ function EscalationQueue({ reviews }: { reviews: EscalatedReview[] }) {
         <div className="px-6 py-16 text-center">
           <p
             className="font-display italic"
-            style={{ fontSize: 'var(--text-xl)', color: 'var(--color-accent-dim)' }}
+            style={{ fontSize: 'var(--text-xl)', color: 'var(--color-muted)' }}
           >
             All caught up.
           </p>
@@ -455,10 +458,13 @@ function EscalationQueue({ reviews }: { reviews: EscalatedReview[] }) {
                 </p>
                 <div className="flex items-center gap-2">
                   <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    lineHeight: 1,
                     fontSize: 'var(--text-xs)',
                     backgroundColor: 'var(--color-escalate-bg)',
                     color: 'var(--color-escalate)',
-                    padding: '1px 6px',
+                    padding: '3px 6px',
                     borderRadius: 'var(--radius-sm)',
                   }}>
                     escalated

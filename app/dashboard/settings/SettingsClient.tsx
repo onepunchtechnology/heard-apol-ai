@@ -316,7 +316,7 @@ export default function SettingsClient({
                 href="https://judge.me/admin/settings/integrations"
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{ fontSize: 'var(--text-sm)', color: 'var(--color-accent-dim)', textDecoration: 'none' }}
+                style={{ fontSize: 'var(--text-sm)', color: 'var(--color-muted)', textDecoration: 'none' }}
               >
                 Where do I find this?
               </a>
@@ -399,10 +399,13 @@ export default function SettingsClient({
                 {store.google_connection_mode ? (
                   <span
                     style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      lineHeight: 1,
                       fontSize: 'var(--text-xs)',
                       backgroundColor: 'var(--color-warning-bg)',
                       color: 'var(--color-warning)',
-                      padding: '2px 8px',
+                      padding: '3px 8px',
                       borderRadius: 'var(--radius-sm)',
                     }}
                   >
@@ -485,7 +488,7 @@ export default function SettingsClient({
                   href="https://developers.google.com/my-business/content/prereqs#request-access"
                   target="_blank"
                   rel="noopener noreferrer"
-                  style={{ color: 'var(--color-accent-dim)', textDecoration: 'none' }}
+                  style={{ color: 'var(--color-muted)', textDecoration: 'none' }}
                 >
                   Apply for access ↗
                 </a>
@@ -495,7 +498,7 @@ export default function SettingsClient({
         ) : (
           <p style={{ color: 'var(--color-muted)', fontSize: 'var(--text-sm)' }}>
             No store connected.{' '}
-            <a href="/setup" style={{ color: 'var(--color-accent-dim)' }}>
+            <a href="/setup" style={{ color: 'var(--color-muted)' }}>
               Complete setup
             </a>{' '}
             to connect your store.
@@ -708,7 +711,7 @@ export default function SettingsClient({
                 background: 'none',
                 border: 'none',
                 fontSize: 'var(--text-xs)',
-                color: 'var(--color-accent-dim)',
+                color: 'var(--color-muted)',
                 cursor: 'pointer',
                 padding: 0,
               }}
@@ -784,10 +787,13 @@ function StatusPill({ connected }: { connected: boolean }) {
   return (
     <span
       style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        lineHeight: 1,
         fontSize: 'var(--text-xs)',
         backgroundColor: connected ? 'var(--color-success-bg)' : 'var(--color-warning-bg)',
         color: connected ? 'var(--color-success)' : 'var(--color-warning)',
-        padding: '2px 8px',
+        padding: '3px 8px',
         borderRadius: 'var(--radius-sm)',
       }}
     >

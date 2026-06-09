@@ -80,3 +80,10 @@ body {
 .pulse {
   animation: status-pulse 2.4s ease-in-out infinite;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse {
+    animation: none;
+    opacity: 1;
+  }
+}

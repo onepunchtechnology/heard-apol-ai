@@ -244,7 +244,7 @@ export default function ReviewsClient({ reviews: initialReviews, replyMode }: { 
           </span>
           <a
             href="/dashboard/settings"
-            style={{ fontSize: 'var(--text-xs)', color: 'var(--color-accent-dim)', textDecoration: 'none', flexShrink: 0, marginLeft: '8px' }}
+            style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', textDecoration: 'none', flexShrink: 0, marginLeft: '8px' }}
           >
             Change in Settings →
           </a>
@@ -495,10 +495,13 @@ function ReviewDetail({
             {action.confidence !== undefined && (
               <span
                 style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  lineHeight: 1,
                   fontSize: 'var(--text-xs)',
                   backgroundColor: 'var(--color-success-bg)',
                   color: 'var(--color-success)',
-                  padding: '1px 6px',
+                  padding: '3px 6px',
                   borderRadius: 'var(--radius-sm)',
                 }}
               >
@@ -676,7 +679,7 @@ function ManualPasteButton({
           <button
             onClick={handleMarkPosted}
             style={{
-              color: 'var(--color-accent-dim)',
+              color: 'var(--color-muted)',
               background: 'none',
               border: 'none',
               cursor: 'pointer',
@@ -706,10 +709,13 @@ function PlatformBadge({ source }: { source: string }) {
   return (
     <span
       style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        lineHeight: 1,
         fontSize: 'var(--text-xs)',
         backgroundColor: 'var(--color-surface)',
         color: 'var(--color-muted)',
-        padding: '1px 6px',
+        padding: '3px 6px',
         borderRadius: 'var(--radius-sm)',
         border: '1px solid var(--color-border)',
         flexShrink: 0,
@@ -741,10 +747,13 @@ function StatusBadge({ status, decision }: { status: string; decision?: 'auto_po
     <span
       className={status === 'processing' ? 'pulse' : undefined}
       style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        lineHeight: 1,
         fontSize: 'var(--text-xs)',
         backgroundColor: cfg.bg,
         color: cfg.color,
-        padding: '1px 6px',
+        padding: '3px 6px',
         borderRadius: 'var(--radius-sm)',
         flexShrink: 0,
       }}

@@ -97,7 +97,7 @@ function parseTrace(trace: unknown): Array<{ label: string; data: string; color:
           const snippets = s.snippets as string[] | undefined
           const count = (s.matched_count as number | undefined) ?? snippets?.length ?? 0
           data = `${count} snippet${count !== 1 ? 's' : ''} matched`
-          color = 'var(--color-accent-dim)'
+          color = 'var(--color-muted)'
           break
         }
         case 'fetch_order_context':
@@ -284,13 +284,13 @@ export default function AgentsClient({
             const isProcessing = review.status === 'processing'
 
             const statusColor = isProcessing
-              ? 'var(--color-accent)'
+              ? 'var(--color-warning)'
               : isAutoPosted
               ? 'var(--color-success)'
               : isBlocked
-              ? 'var(--color-escalate)'
-              : isEscalated
               ? 'var(--color-warning)'
+              : isEscalated
+              ? 'var(--color-escalate)'
               : 'var(--color-muted)'
 
             const outcomeLabel = isProcessing
@@ -304,10 +304,12 @@ export default function AgentsClient({
               : review.status
 
             const outcomeStyle = isProcessing
-              ? { bg: 'var(--color-surface)', color: 'var(--color-accent)' }
+              ? { bg: 'var(--color-warning-bg)', color: 'var(--color-warning)' }
               : isAutoPosted
               ? { bg: 'var(--color-success-bg)', color: 'var(--color-success)' }
-              : isBlocked || isEscalated
+              : isBlocked
+              ? { bg: 'var(--color-warning-bg)', color: 'var(--color-warning)' }
+              : isEscalated
               ? { bg: 'var(--color-escalate-bg)', color: 'var(--color-escalate)' }
               : { bg: 'var(--color-surface)', color: 'var(--color-muted)' }
 
@@ -333,7 +335,9 @@ export default function AgentsClient({
                 >
                   {/* Status dot */}
                   <span
+                    role="img"
                     className={isProcessing ? 'pulse' : undefined}
+                    aria-label={outcomeLabel}
                     style={{
                       width: '8px',
                       height: '8px',
@@ -381,10 +385,13 @@ export default function AgentsClient({
                   {/* Outcome badge */}
                   <span
                     style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      lineHeight: 1,
                       fontSize: 'var(--text-xs)',
                       backgroundColor: outcomeStyle.bg,
                       color: outcomeStyle.color,
-                      padding: '2px 8px',
+                      padding: '3px 8px',
                       borderRadius: 'var(--radius-sm)',
                       flexShrink: 0,
                     }}
@@ -537,10 +544,13 @@ function PlatformBadge({ source }: { source: string }) {
   return (
     <span
       style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        lineHeight: 1,
         fontSize: 'var(--text-xs)',
         backgroundColor: 'var(--color-surface-2)',
         color: 'var(--color-muted)',
-        padding: '2px 7px',
+        padding: '3px 7px',
         borderRadius: 'var(--radius-sm)',
         flexShrink: 0,
       }}
