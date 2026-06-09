@@ -92,17 +92,8 @@ export async function POST(request: NextRequest) {
 }
 
 async function triggerAgent(reviewId: string, storeId: string) {
-  const triggerUrl = process.env.CLOUD_RUN_TRIGGER_URL
-  const triggerSecret = process.env.INTERNAL_AGENT_TRIGGER_SECRET
+  if (!process.env.GCP_PROJECT_NUMBER) return
 
-  if (!triggerUrl || !triggerSecret) return
-
-  await fetch(triggerUrl, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${triggerSecret}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ mode: 'single', review_id: reviewId, store_id: storeId }),
-  })
+  const { triggerCloudRunJob } = await import('@/lib/agent-trigger')
+  await triggerCloudRunJob({ mode: 'single', storeId, reviewId })
 }
