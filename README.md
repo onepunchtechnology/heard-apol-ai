@@ -6,6 +6,8 @@ Heard answers every review across your stores, in your brand voice — and only 
 
 Live at [heard.apol.ai](https://heard.apol.ai) · Built for the [Google for Startups AI Agents Challenge](https://devpost.team/google-cloud-for-startups/hackathons/3197), Track 1 · Part of [apol.ai](https://apol.ai)
 
+---
+
 > **PROPRIETARY — HACKATHON REVIEW ONLY**
 >
 > Copyright © 2026 One Punch Technology, Inc. All rights reserved.

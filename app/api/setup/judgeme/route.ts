@@ -43,6 +43,22 @@ export async function POST(request: NextRequest) {
     ...(judgeme_webhook_secret ? { judgeme_webhook_secret } : {}),
   }).eq('id', store.id)
 
+  // Register webhook so Judge.me pushes new reviews to Heard — failure never blocks wizard
+  let webhook_registered = false
+  try {
+    const webhookRes = await fetch(
+      `https://api.judge.me/api/v1/webhooks?shop_domain=${store.shopify_domain}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Api-Token': judgeme_api_token },
+        body: JSON.stringify({ webhook: { key: 'review/created', url: 'https://heard.apol.ai/api/webhooks/judgeme' } }),
+      },
+    )
+    webhook_registered = webhookRes.ok
+  } catch {
+    // Non-fatal — merchant can still use manual sweep; webhook can be registered later
+  }
+
   // Import existing replied reviews for brand voice grounding — failure never blocks wizard
   let imported_replies: string[] = []
   let review_count = 0
@@ -70,5 +86,5 @@ export async function POST(request: NextRequest) {
     // Import failure is non-fatal — return empty arrays below
   }
 
-  return NextResponse.json({ ok: true, imported_replies, review_count, reply_count })
+  return NextResponse.json({ ok: true, imported_replies, review_count, reply_count, webhook_registered })
 }
