@@ -302,10 +302,14 @@ export default function SettingsClient({
                 </span>
                 <StatusPill connected={judgemeConnected} />
               </div>
-              <label style={{ fontSize: 'var(--text-sm)', fontWeight: 500, color: 'var(--color-text)', display: 'block', marginBottom: '6px' }}>
+              <label
+                htmlFor="judgeme-api-token"
+                style={{ fontSize: 'var(--text-sm)', fontWeight: 500, color: 'var(--color-text)', display: 'block', marginBottom: '6px' }}
+              >
                 API Token
               </label>
               <Input
+                id="judgeme-api-token"
                 type="password"
                 value={judgeToken}
                 onChange={(e) => setJudgeToken(e.target.value)}
@@ -436,10 +440,14 @@ export default function SettingsClient({
 
               {(store.google_connection_mode === 'manual_paste' || !store.google_connection_mode) && (
                 <div style={{ marginBottom: '12px' }}>
-                  <label style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text)', display: 'block', marginBottom: '6px' }}>
+                  <label
+                    htmlFor="google-review-paste"
+                    style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text)', display: 'block', marginBottom: '6px' }}
+                  >
                     Review URL or content
                   </label>
                   <Textarea
+                    id="google-review-paste"
                     value={googlePaste}
                     onChange={(e) => setGooglePaste(e.target.value)}
                     rows={3}
@@ -496,8 +504,9 @@ export default function SettingsClient({
         <Separator className="mb-6" />
 
         {/* Brand description */}
-        <FieldGroup label="Brand description">
+        <FieldGroup label="Brand description" htmlFor="brand-description">
           <Textarea
+            id="brand-description"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={4}
@@ -561,7 +570,7 @@ export default function SettingsClient({
         </FieldGroup>
 
         {/* Prohibited phrases tag input */}
-        <FieldGroup label="Prohibited phrases">
+        <FieldGroup label="Prohibited phrases" htmlFor="prohibited-phrase-input">
           <div
             style={{
               display: 'flex',
@@ -593,6 +602,7 @@ export default function SettingsClient({
                 {phrase}
                 <button
                   type="button"
+                  aria-label={`Remove prohibited phrase ${phrase}`}
                   onClick={(e) => { e.stopPropagation(); removePhrase(i) }}
                   style={{
                     background: 'none',
@@ -609,6 +619,7 @@ export default function SettingsClient({
               </span>
             ))}
             <input
+              id="prohibited-phrase-input"
               ref={phraseInputRef}
               value={phraseInput}
               onChange={(e) => setPhraseInput(e.target.value)}
@@ -633,8 +644,9 @@ export default function SettingsClient({
         </FieldGroup>
 
         {/* Custom rules */}
-        <FieldGroup label="Custom rules">
+        <FieldGroup label="Custom rules" htmlFor="custom-rules">
           <Textarea
+            id="custom-rules"
             value={customRules}
             onChange={(e) => setCustomRules(e.target.value)}
             rows={3}
@@ -737,10 +749,10 @@ function StatusPill({ connected }: { connected: boolean }) {
   )
 }
 
-function FieldGroup({ label, children }: { label: string; children: React.ReactNode }) {
+function FieldGroup({ label, htmlFor, children }: { label: string; htmlFor?: string; children: React.ReactNode }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '24px' }}>
-      <label style={{ fontSize: 'var(--text-sm)', fontWeight: 500, color: 'var(--color-text)' }}>
+      <label htmlFor={htmlFor} style={{ fontSize: 'var(--text-sm)', fontWeight: 500, color: 'var(--color-text)' }}>
         {label}
       </label>
       {children}
