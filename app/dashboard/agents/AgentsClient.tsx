@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import { formatDistanceToNow } from '@/lib/utils'
 
 interface AgentRun {
@@ -136,9 +137,16 @@ function parseTrace(trace: unknown): Array<{ label: string; data: string; color:
     })
 }
 
+const REVIEW_SELECT = `
+  id, reviewer_name, rating, body, source, received_at, status, product_title, store_id,
+  review_actions (
+    id, risk_score, sentiment_label, agent_reasoning, agent_trace, draft_reply, decision, confidence, auto_posted_at
+  )
+`.trim()
+
 export default function AgentsClient({
   runs,
-  reviews,
+  reviews: initialReviews,
   storeName,
   durations,
 }: {
@@ -147,8 +155,51 @@ export default function AgentsClient({
   storeName: string | null
   durations: Record<string, number>
 }) {
+  const [reviews, setReviews] = useState<Review[]>(initialReviews)
   const [filter, setFilter] = useState<FilterTab>('All')
   const [expandedId, setExpandedId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const supabase = createClient()
+
+    async function upsertReview(reviewId: string) {
+      const { data } = await supabase
+        .from('reviews')
+        .select(REVIEW_SELECT)
+        .eq('id', reviewId)
+        .single()
+      if (!data) return
+      const row = data as unknown as Review
+      setReviews((prev) => {
+        const exists = prev.some((r) => r.id === row.id)
+        if (exists) return prev.map((r) => (r.id === row.id ? row : r))
+        return [row, ...prev]
+      })
+    }
+
+    const channel = supabase
+      .channel('agents-live')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'reviews' },
+        (payload) => {
+          const updated = payload.new as { id: string; status: string }
+          if (updated.status === 'pending' || updated.status === 'imported') return
+          upsertReview(updated.id)
+        },
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'review_actions' },
+        (payload) => {
+          const action = payload.new as { review_id: string }
+          upsertReview(action.review_id)
+        },
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [])
 
   const today = new Date()
   const todayStr = today.toDateString()

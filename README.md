@@ -12,7 +12,7 @@ Live at [heard.apol.ai](https://heard.apol.ai) · Built for the [Google for Star
 >
 > Copyright © 2026 One Punch Technology, Inc. All rights reserved.
 >
-> This repository and all of its contents — including but not limited to source code, configuration files, prompts, system architecture, and documentation — are the exclusive intellectual property of One Punch Technology, Inc. and are made available solely for review by authorized hackathon organizers and judges of the Google for Startups AI Agents Challenge. No other right or license is granted, express or implied. Any reproduction, distribution, modification, or commercial use of any portion of this repository, in whole or in part, without the prior written consent of One Punch Technology, Inc. is strictly prohibited and may constitute copyright infringement and/or misappropriation of trade secrets under applicable law. Unauthorized use may be reported to Devpost and GitHub.
+> This repository and all of its contents — including but not limited to source code, configuration files, prompts, system architecture, and documentation — are the exclusive intellectual property of One Punch Technology, Inc. and are made available solely for review by authorized hackathon organizers and judges of the **Google for Startups AI Agents Challenge**. No other right or license is granted, express or implied. Any reproduction, distribution, modification, or commercial use of any portion of this repository, in whole or in part, without the prior written consent of One Punch Technology, Inc. is strictly prohibited and may constitute copyright infringement and/or misappropriation of trade secrets under applicable law. Unauthorized use may be reported to Devpost and GitHub.
 
 ---
 
@@ -82,7 +82,7 @@ Live at [heard.apol.ai](https://heard.apol.ai) · Built for the [Google for Star
 
 ## What it does
 
-Multi-platform sellers burn time every morning answering reviews across multiple dashboards. Heard runs the overnight shift:
+Multi-platform sellers burn time every day answering reviews across multiple dashboards and portals. Heard saves merchant operators time by monitoring and replying autonomously:
 
 1. Pulls new reviews from every connected store
 2. Classifies each: praise / question / complaint / urgent + risk score
@@ -91,7 +91,7 @@ Multi-platform sellers burn time every morning answering reviews across multiple
 5. Fetches Shopify order context on complaint reviews via MCP
 6. Auto-posts the safe ones; escalates the risky ones with the order already pulled up
 
-## Platforms
+## Integrations
 
 - **Judge.me** (Shopify review app) — webhook-driven, real-time
 - **Google Business Profile** — manual-paste mode (agent drafts reply; merchant posts in Google). API mode implemented, pending Google access approval.

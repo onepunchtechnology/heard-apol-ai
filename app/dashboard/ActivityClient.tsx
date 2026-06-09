@@ -1,5 +1,7 @@
 'use client'
 
+import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import { formatDistanceToNow } from '@/lib/utils'
 
 interface Stats {
@@ -33,12 +35,53 @@ interface ActivityClientProps {
   recentEscalated: EscalatedReview[]
   trend: number[]
   storeCount: number
+  isDemoAccount?: boolean
 }
 
 const DEMO_TREND = [3, 5, 2, 8, 4, 6, 7]
 
-export default function ActivityClient({ stats, recentEscalated, trend, storeCount }: ActivityClientProps) {
+export default function ActivityClient({ stats: initialStats, recentEscalated: initialEscalated, trend, storeCount, isDemoAccount }: ActivityClientProps) {
   const chartValues = trend.length === 7 ? trend : DEMO_TREND
+  const [stats, setStats] = useState<Stats>(initialStats)
+  const [recentEscalated, setRecentEscalated] = useState<EscalatedReview[]>(initialEscalated)
+
+  useEffect(() => {
+    const supabase = createClient()
+
+    async function refreshStats() {
+      const [
+        { count: autoPostedCount },
+        { count: escalatedCount },
+        { count: totalCount },
+        { data: runs },
+        { data: escalated },
+      ] = await Promise.all([
+        supabase.from('reviews').select('*', { count: 'exact', head: true }).eq('status', 'auto_posted'),
+        supabase.from('reviews').select('*', { count: 'exact', head: true }).in('status', ['needs_review', 'reply_pending_manual']),
+        supabase.from('reviews').select('*', { count: 'exact', head: true }).not('status', 'eq', 'pending').not('status', 'eq', 'imported'),
+        supabase.from('agent_runs').select('completed_at').order('started_at', { ascending: false }).limit(1),
+        supabase.from('reviews').select(`
+          id, reviewer_name, rating, body, source, received_at, status,
+          review_actions (risk_score, sentiment_label, agent_reasoning)
+        `).in('status', ['needs_review', 'reply_pending_manual']).order('received_at', { ascending: false }).limit(5),
+      ])
+      setStats({
+        autoPosted: autoPostedCount ?? 0,
+        escalated: escalatedCount ?? 0,
+        total: totalCount ?? 0,
+        lastRunAt: (runs?.[0] as { completed_at: string | null } | undefined)?.completed_at ?? null,
+      })
+      setRecentEscalated((escalated ?? []) as EscalatedReview[])
+    }
+
+    const channel = supabase
+      .channel('activity-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reviews' }, refreshStats)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'agent_runs' }, refreshStats)
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [])
 
   return (
     <div className="p-8 max-w-5xl">
@@ -87,6 +130,9 @@ export default function ActivityClient({ stats, recentEscalated, trend, storeCou
         </p>
         <TrendChart values={chartValues} />
       </div>
+
+      {/* Hackathon controls — demo account only */}
+      {isDemoAccount && <HackathonPanel />}
 
       {/* Escalation queue */}
       <div
@@ -199,6 +245,171 @@ export default function ActivityClient({ stats, recentEscalated, trend, storeCou
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+type PanelState = 'idle' | 'confirm' | 'loading' | 'done' | 'error'
+
+function HackathonPanel() {
+  const [resetState, setResetState] = useState<PanelState>('idle')
+  const [sweepState, setSweepState] = useState<PanelState>('idle')
+  const [errorMsg, setErrorMsg] = useState('')
+
+  async function handleReset() {
+    if (resetState === 'idle') { setResetState('confirm'); return }
+    setResetState('loading')
+    try {
+      const res = await fetch('/api/demo/reset', { method: 'POST' })
+      if (!res.ok) {
+        const body = await res.json()
+        setErrorMsg(body.error ?? 'Reset failed')
+        setResetState('error')
+      } else {
+        setResetState('done')
+        setTimeout(() => setResetState('idle'), 3000)
+      }
+    } catch {
+      setErrorMsg('Network error')
+      setResetState('error')
+      setTimeout(() => setResetState('idle'), 3000)
+    }
+  }
+
+  async function handleSweep() {
+    setSweepState('loading')
+    try {
+      const res = await fetch('/api/agent/trigger', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'sweep' }),
+      })
+      if (!res.ok) {
+        const body = await res.json()
+        setErrorMsg(body.error ?? 'Sweep failed')
+        setSweepState('error')
+        setTimeout(() => setSweepState('idle'), 3000)
+      } else {
+        setSweepState('done')
+        setTimeout(() => setSweepState('idle'), 4000)
+      }
+    } catch {
+      setErrorMsg('Network error')
+      setSweepState('error')
+      setTimeout(() => setSweepState('idle'), 3000)
+    }
+  }
+
+  const resetLabel =
+    resetState === 'confirm' ? 'Confirm reset?' :
+    resetState === 'loading' ? 'Resetting…' :
+    resetState === 'done' ? 'Reset complete' :
+    resetState === 'error' ? 'Error — retry' :
+    'Reset demo'
+
+  const sweepLabel =
+    sweepState === 'loading' ? 'Triggering…' :
+    sweepState === 'done' ? 'Sweep triggered — check Reviews' :
+    sweepState === 'error' ? 'Error — retry' :
+    'Run sweep'
+
+  return (
+    <div
+      className="mb-8 rounded-md"
+      style={{
+        backgroundColor: 'var(--color-bg)',
+        border: '1px dashed var(--color-border)',
+        borderRadius: 'var(--radius-md)',
+        padding: '20px 24px',
+      }}
+    >
+      <p
+        style={{
+          fontSize: 'var(--text-xs)',
+          fontWeight: 600,
+          color: 'var(--color-muted)',
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          marginBottom: '4px',
+        }}
+      >
+        Hackathon
+      </p>
+      <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-muted)', marginBottom: '16px' }}>
+        Demo controls — visible only to the demo account.
+      </p>
+      <div className="flex gap-3 flex-wrap">
+        <button
+          onClick={handleReset}
+          disabled={resetState === 'loading'}
+          style={{
+            height: '36px',
+            padding: '0 16px',
+            borderRadius: 'var(--radius-sm)',
+            fontSize: 'var(--text-sm)',
+            fontWeight: 500,
+            border: '1px solid var(--color-border)',
+            cursor: resetState === 'loading' ? 'not-allowed' : 'pointer',
+            backgroundColor: resetState === 'confirm'
+              ? 'var(--color-escalate-bg)'
+              : resetState === 'done'
+              ? 'var(--color-success-bg)'
+              : 'var(--color-surface)',
+            color: resetState === 'confirm'
+              ? 'var(--color-escalate)'
+              : resetState === 'done'
+              ? 'var(--color-success)'
+              : 'var(--color-text)',
+            transition: 'background-color 0.15s ease, color 0.15s ease',
+          }}
+        >
+          {resetLabel}
+        </button>
+        {resetState === 'confirm' && (
+          <button
+            onClick={() => setResetState('idle')}
+            style={{
+              height: '36px',
+              padding: '0 12px',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: 'var(--text-sm)',
+              border: '1px solid var(--color-border)',
+              cursor: 'pointer',
+              backgroundColor: 'transparent',
+              color: 'var(--color-muted)',
+            }}
+          >
+            Cancel
+          </button>
+        )}
+        <button
+          onClick={handleSweep}
+          disabled={sweepState === 'loading' || sweepState === 'done'}
+          style={{
+            height: '36px',
+            padding: '0 16px',
+            borderRadius: 'var(--radius-sm)',
+            fontSize: 'var(--text-sm)',
+            fontWeight: 500,
+            border: '1px solid var(--color-border)',
+            cursor: sweepState === 'loading' || sweepState === 'done' ? 'not-allowed' : 'pointer',
+            backgroundColor: sweepState === 'done'
+              ? 'var(--color-success-bg)'
+              : 'var(--color-surface)',
+            color: sweepState === 'done'
+              ? 'var(--color-success)'
+              : 'var(--color-text)',
+            transition: 'background-color 0.15s ease, color 0.15s ease',
+          }}
+        >
+          {sweepLabel}
+        </button>
+      </div>
+      {(resetState === 'error' || sweepState === 'error') && (
+        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-escalate)', marginTop: '8px' }}>
+          {errorMsg}
+        </p>
+      )}
     </div>
   )
 }

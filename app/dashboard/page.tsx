@@ -67,6 +67,8 @@ export default async function ActivityPage() {
     }).length
   })
 
+  const { data: { user } } = await supabase.auth.getUser()
+
   const stats = {
     autoPosted: autoPostedCount ?? 0,
     escalated: escalatedCount ?? 0,
@@ -74,5 +76,13 @@ export default async function ActivityPage() {
     lastRunAt: latestRun ? (latestRun as { completed_at: string | null }).completed_at : null,
   }
 
-  return <ActivityClient stats={stats} recentEscalated={recentEscalated ?? []} trend={trend} storeCount={storeCount ?? 1} />
+  return (
+    <ActivityClient
+      stats={stats}
+      recentEscalated={recentEscalated ?? []}
+      trend={trend}
+      storeCount={storeCount ?? 1}
+      isDemoAccount={user?.email === 'google-hackathon-demo-9c25d0@apol.ai'}
+    />
+  )
 }
