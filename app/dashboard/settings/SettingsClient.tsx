@@ -1,6 +1,13 @@
 'use client'
 
 import { useState, useRef, KeyboardEvent } from 'react'
+import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Separator } from '@/components/ui/separator'
+import { Textarea } from '@/components/ui/textarea'
 
 interface Store {
   id: string
@@ -47,6 +54,12 @@ const SAMPLE_REPLIES = [
   'Thank you for the thoughtful review, Jordan! We\'re so glad the figure impressed. We\'re passing your packaging feedback along to our team. We hope it looks incredible on display! 🙌',
 ]
 
+const HEARD_FOCUS_CLASS =
+  'focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-dim focus-visible:outline-offset-2'
+
+const BADGE_BASE_CLASS =
+  'shadow-none font-normal rounded-sm text-[11px] py-[3px] px-2 leading-none border-transparent'
+
 export default function SettingsClient({
   store,
   brandVoice,
@@ -62,22 +75,27 @@ export default function SettingsClient({
   const [replyMode, setReplyMode] = useState<'auto_post' | 'manual_approval'>(
     store?.reply_mode ?? 'manual_approval'
   )
-  const [replyModeSaving, setReplyModeSaving] = useState(false)
-  const [replyModeSaved, setReplyModeSaved] = useState(false)
+  const [replyModeStatus, setReplyModeStatus] = useState('')
 
   async function handleReplyModeChange(mode: 'auto_post' | 'manual_approval') {
     if (mode === replyMode) return
     setReplyMode(mode)
-    setReplyModeSaving(true)
-    setReplyModeSaved(false)
-    await fetch('/api/settings/reply-mode', {
+    setReplyModeStatus('Saving reply mode')
+
+    const res = await fetch('/api/settings/reply-mode', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ reply_mode: mode }),
     })
-    setReplyModeSaving(false)
-    setReplyModeSaved(true)
-    setTimeout(() => setReplyModeSaved(false), 2000)
+
+    if (res.ok) {
+      setReplyModeStatus('Reply mode saved')
+      toast('Reply mode saved')
+      setTimeout(() => setReplyModeStatus(''), 2000)
+    } else {
+      setReplyModeStatus('Reply mode failed to save')
+      toast('Reply mode failed to save')
+    }
   }
 
   // Brand voice state
@@ -201,7 +219,7 @@ export default function SettingsClient({
         <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-muted)', margin: '0 0 16px' }}>
           Controls whether Heard posts replies automatically or holds every draft for your approval.
         </p>
-        <div style={{ height: '1px', backgroundColor: 'var(--color-border)', marginBottom: '24px' }} />
+        <Separator className="mb-6" />
 
         <div className="flex gap-2" style={{ marginBottom: '12px' }}>
           <button
@@ -240,16 +258,9 @@ export default function SettingsClient({
           >
             Auto-Post
           </button>
-          {replyModeSaving && (
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', alignSelf: 'center' }}>
-              Saving…
-            </span>
-          )}
-          {replyModeSaved && (
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-success)', alignSelf: 'center' }}>
-              Saved ✓
-            </span>
-          )}
+          <span className="sr-only" aria-live="polite">
+            {replyModeStatus}
+          </span>
         </div>
 
         <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', margin: 0 }}>
@@ -279,12 +290,12 @@ export default function SettingsClient({
         >
           Store Connections
         </h2>
-        <div style={{ height: '1px', backgroundColor: 'var(--color-border)', marginBottom: '24px' }} />
+        <Separator className="mb-6" />
 
         {store ? (
           <>
             {/* Judge.me */}
-            <div style={{ paddingBottom: '24px', marginBottom: '24px', borderBottom: '1px solid var(--color-border)' }}>
+            <div style={{ paddingBottom: '24px', marginBottom: '24px' }}>
               <div className="flex items-center justify-between" style={{ marginBottom: '12px' }}>
                 <span style={{ fontSize: 'var(--text-base)', fontWeight: 500, color: 'var(--color-text)' }}>
                   Judge.me
@@ -294,23 +305,12 @@ export default function SettingsClient({
               <label style={{ fontSize: 'var(--text-sm)', fontWeight: 500, color: 'var(--color-text)', display: 'block', marginBottom: '6px' }}>
                 API Token
               </label>
-              <input
+              <Input
                 type="password"
                 value={judgeToken}
                 onChange={(e) => setJudgeToken(e.target.value)}
                 placeholder="••••••••••••••••"
-                style={{
-                  width: '100%',
-                  height: '48px',
-                  padding: '0 16px',
-                  backgroundColor: 'var(--color-surface)',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: 'var(--text-sm)',
-                  color: 'var(--color-text)',
-                  fontFamily: 'inherit',
-                  marginBottom: '6px',
-                }}
+                className={cn('bg-surface border-border text-sm h-12 mb-1.5 font-sans', HEARD_FOCUS_CLASS)}
               />
               <a
                 href="https://judge.me/admin/settings/integrations"
@@ -326,44 +326,36 @@ export default function SettingsClient({
                 </p>
               )}
               <div className="flex gap-3 items-center" style={{ marginTop: '12px' }}>
-                <button
+                <Button
+                  type="button"
                   onClick={handleUpdateToken}
                   disabled={tokenSaving || !judgeToken.trim()}
-                  style={{
-                    height: '40px',
-                    padding: '0 16px',
-                    backgroundColor: tokenResult === 'saved' ? 'var(--color-success-bg)' : 'var(--color-accent)',
-                    color: tokenResult === 'saved' ? 'var(--color-success)' : 'var(--color-text)',
-                    border: 'none',
-                    borderRadius: 'var(--radius-md)',
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    cursor: tokenSaving || !judgeToken.trim() ? 'not-allowed' : 'pointer',
-                    opacity: tokenSaving || !judgeToken.trim() ? 0.5 : 1,
-                    transition: `background-color var(--duration-short) var(--ease-out), color var(--duration-short) var(--ease-out)`,
-                  }}
+                  className={cn(
+                    'h-10 text-sm font-medium',
+                    HEARD_FOCUS_CLASS,
+                    tokenResult === 'saved'
+                      ? 'bg-success-bg text-success hover:bg-success-bg shadow-none'
+                      : 'bg-accent text-text hover:bg-accent/90 shadow-none'
+                  )}
                 >
                   {tokenSaving ? 'Updating…' : tokenResult === 'saved' ? 'Saved ✓' : 'Update Token'}
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="ghost"
                   disabled
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    fontSize: 'var(--text-sm)',
-                    color: 'var(--color-escalate)',
-                    cursor: 'not-allowed',
-                    padding: 0,
-                    opacity: 0.5,
-                  }}
+                  className={cn(
+                    'text-escalate hover:text-escalate hover:bg-transparent p-0 h-auto text-sm opacity-50 shadow-none',
+                    HEARD_FOCUS_CLASS
+                  )}
                 >
                   Disconnect
-                </button>
+                </Button>
               </div>
+              <Separator className="mb-0 mt-6" />
             </div>
 
             {/* Shopify */}
-            <div style={{ paddingBottom: '24px', marginBottom: '24px', borderBottom: '1px solid var(--color-border)' }}>
+            <div style={{ paddingBottom: '24px', marginBottom: '24px' }}>
               <div className="flex items-center justify-between" style={{ marginBottom: '8px' }}>
                 <span style={{ fontSize: 'var(--text-base)', fontWeight: 500, color: 'var(--color-text)' }}>
                   Shopify
@@ -373,21 +365,17 @@ export default function SettingsClient({
               <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-muted)' }}>
                 {shopifyConnected ? `Connected via OAuth · ${store.store_name ?? store.store_domain}` : 'Connect via Shopify OAuth in the setup wizard.'}
               </p>
-              <button
+              <Button
+                variant="ghost"
                 disabled
-                style={{
-                  marginTop: '12px',
-                  background: 'none',
-                  border: 'none',
-                  fontSize: 'var(--text-sm)',
-                  color: 'var(--color-escalate)',
-                  cursor: 'not-allowed',
-                  padding: 0,
-                  opacity: 0.5,
-                }}
+                className={cn(
+                  'mt-3 text-escalate hover:text-escalate hover:bg-transparent p-0 h-auto text-sm opacity-50 shadow-none',
+                  HEARD_FOCUS_CLASS
+                )}
               >
                 Disconnect store
-              </button>
+              </Button>
+              <Separator className="mb-0 mt-6" />
             </div>
 
             {/* Google Business Profile */}
@@ -397,20 +385,9 @@ export default function SettingsClient({
                   Google Business Profile
                 </span>
                 {store.google_connection_mode ? (
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      lineHeight: 1,
-                      fontSize: 'var(--text-xs)',
-                      backgroundColor: 'var(--color-warning-bg)',
-                      color: 'var(--color-warning)',
-                      padding: '3px 8px',
-                      borderRadius: 'var(--radius-sm)',
-                    }}
-                  >
+                  <Badge className={cn(BADGE_BASE_CLASS, 'bg-warning-bg text-warning hover:bg-warning-bg')}>
                     Manual mode
-                  </span>
+                  </Badge>
                 ) : (
                   <StatusPill connected={false} />
                 )}
@@ -462,22 +439,12 @@ export default function SettingsClient({
                   <label style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text)', display: 'block', marginBottom: '6px' }}>
                     Review URL or content
                   </label>
-                  <textarea
+                  <Textarea
                     value={googlePaste}
                     onChange={(e) => setGooglePaste(e.target.value)}
                     rows={3}
                     placeholder="Paste a Google review URL or review text to add it manually."
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px',
-                      backgroundColor: 'var(--color-surface)',
-                      border: '1px solid var(--color-border)',
-                      borderRadius: 'var(--radius-md)',
-                      fontSize: 'var(--text-sm)',
-                      color: 'var(--color-text)',
-                      fontFamily: 'inherit',
-                      resize: 'none',
-                    }}
+                    className={cn('bg-surface border-border text-sm resize-none font-sans', HEARD_FOCUS_CLASS)}
                   />
                 </div>
               )}
@@ -526,27 +493,16 @@ export default function SettingsClient({
         >
           Brand Voice
         </h2>
-        <div style={{ height: '1px', backgroundColor: 'var(--color-border)', marginBottom: '24px' }} />
+        <Separator className="mb-6" />
 
         {/* Brand description */}
         <FieldGroup label="Brand description">
-          <textarea
+          <Textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={4}
             placeholder="Describe your store's personality and how you want to sound to customers."
-            style={{
-              width: '100%',
-              height: '100px',
-              padding: '10px 14px',
-              backgroundColor: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 'var(--radius-md)',
-              fontSize: 'var(--text-sm)',
-              color: 'var(--color-text)',
-              fontFamily: 'inherit',
-              resize: 'none',
-            }}
+            className={cn('bg-surface border-border text-sm resize-none h-[100px] font-sans', HEARD_FOCUS_CLASS)}
           />
         </FieldGroup>
 
@@ -678,23 +634,12 @@ export default function SettingsClient({
 
         {/* Custom rules */}
         <FieldGroup label="Custom rules">
-          <textarea
+          <Textarea
             value={customRules}
             onChange={(e) => setCustomRules(e.target.value)}
             rows={3}
             placeholder="e.g. Always offer a 10% discount code for 1-star reviews. Never name competitor brands."
-            style={{
-              width: '100%',
-              height: '80px',
-              padding: '10px 14px',
-              backgroundColor: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 'var(--radius-md)',
-              fontSize: 'var(--text-sm)',
-              color: 'var(--color-text)',
-              fontFamily: 'inherit',
-              resize: 'none',
-            }}
+            className={cn('bg-surface border-border text-sm resize-none h-20 font-sans', HEARD_FOCUS_CLASS)}
           />
         </FieldGroup>
 
@@ -758,25 +703,19 @@ export default function SettingsClient({
 
         {/* Save button */}
         <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
-          <button
+          <Button
             type="submit"
             disabled={saving}
-            style={{
-              width: '240px',
-              height: '48px',
-              backgroundColor: 'var(--color-accent)',
-              color: saved ? 'var(--color-success)' : 'var(--color-text)',
-              border: 'none',
-              borderRadius: 'var(--radius-md)',
-              fontSize: 'var(--text-base)',
-              fontWeight: 500,
-              cursor: saving ? 'not-allowed' : 'pointer',
-              opacity: saving ? 0.6 : 1,
-              transition: `color var(--duration-medium) var(--ease-out), opacity var(--duration-short) var(--ease-out)`,
-            }}
+            className={cn(
+              'w-60 h-12 text-base font-medium shadow-none',
+              HEARD_FOCUS_CLASS,
+              saved
+                ? 'bg-success-bg text-success hover:bg-success-bg'
+                : 'bg-accent text-text hover:bg-accent/90'
+            )}
           >
             {saved ? 'Saved ✓' : saving ? 'Saving…' : 'Save settings'}
-          </button>
+          </Button>
         </div>
       </form>
     </div>
@@ -785,20 +724,16 @@ export default function SettingsClient({
 
 function StatusPill({ connected }: { connected: boolean }) {
   return (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        lineHeight: 1,
-        fontSize: 'var(--text-xs)',
-        backgroundColor: connected ? 'var(--color-success-bg)' : 'var(--color-warning-bg)',
-        color: connected ? 'var(--color-success)' : 'var(--color-warning)',
-        padding: '3px 8px',
-        borderRadius: 'var(--radius-sm)',
-      }}
+    <Badge
+      className={cn(
+        BADGE_BASE_CLASS,
+        connected
+          ? 'bg-success-bg text-success hover:bg-success-bg'
+          : 'bg-warning-bg text-warning hover:bg-warning-bg'
+      )}
     >
       {connected ? 'Connected' : 'Not connected'}
-    </span>
+    </Badge>
   )
 }
 
