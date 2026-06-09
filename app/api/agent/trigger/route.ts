@@ -17,42 +17,24 @@ export async function POST(request: NextRequest) {
 
   if (!storeData) return NextResponse.json({ error: 'Store not found' }, { status: 404 })
 
-  const store = storeData as { id: string }
+  const triggerUrl = process.env.CLOUD_RUN_TRIGGER_URL
+  const triggerSecret = process.env.INTERNAL_AGENT_TRIGGER_SECRET
 
-  const jobName = process.env.CLOUD_RUN_JOB_NAME
-  const project = process.env.GOOGLE_CLOUD_PROJECT
-  const region = process.env.CLOUD_RUN_JOB_REGION ?? 'us-central1'
-
-  if (!jobName || !project) {
+  if (!triggerUrl || !triggerSecret) {
     return NextResponse.json({ error: 'Cloud Run not configured' }, { status: 503 })
   }
 
-  const url = `https://run.googleapis.com/v2/projects/${project}/locations/${region}/jobs/${jobName}:run`
+  const store = storeData as { id: string }
+  const body: Record<string, string> = { mode, store_id: store.id }
+  if (reviewId) body.review_id = reviewId
 
-  const { GoogleAuth } = await import('google-auth-library')
-  const saKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY
-  const auth = new GoogleAuth({
-    credentials: saKey ? JSON.parse(saKey) : undefined,
-    scopes: 'https://www.googleapis.com/auth/cloud-platform',
-  })
-  const client = await auth.getClient()
-  const token = await client.getAccessToken()
-
-  const envVars = [
-    { name: 'MODE', value: mode },
-    { name: 'STORE_ID', value: store.id },
-    ...(reviewId ? [{ name: 'REVIEW_ID', value: reviewId }] : []),
-  ]
-
-  const res = await fetch(url, {
+  const res = await fetch(triggerUrl, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${token.token}`,
+      Authorization: `Bearer ${triggerSecret}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      overrides: { containerOverrides: [{ env: envVars }] },
-    }),
+    body: JSON.stringify(body),
   })
 
   if (!res.ok) {
