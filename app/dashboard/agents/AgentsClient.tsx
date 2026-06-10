@@ -60,8 +60,8 @@ const FILTERS: FilterTab[] = ['All', 'Auto-posted', 'Escalated', 'Blocked']
 function matchesFilter(review: Review, filter: FilterTab): boolean {
   if (filter === 'All') return true
   const action = getAction(review)
-  if (filter === 'Auto-posted') return review.status === 'auto_posted' || action?.decision === 'auto_post'
-  if (filter === 'Escalated') return review.status === 'needs_review' || action?.decision === 'escalate'
+  if (filter === 'Auto-posted') return review.status === 'auto_posted'
+  if (filter === 'Escalated') return (review.status === 'needs_review' && action?.decision !== 'auto_post') || action?.decision === 'escalate'
   if (filter === 'Blocked') {
     const flags = (action?.agent_trace as { steps?: Array<{ step: string; passed?: boolean; fired_flags?: string[] }> })?.steps ?? []
     return flags.some((s) => s.step === 'guardrails' && s.passed === false)
@@ -284,7 +284,8 @@ export default function AgentsClient({
           {filtered.map((review) => {
             const action = getAction(review)
             const isExpanded = expandedId === review.id
-            const isAutoPosted = review.status === 'auto_posted' || action?.decision === 'auto_post'
+            const isAutoPosted = review.status === 'auto_posted'
+            const isAwaitingApproval = action?.decision === 'auto_post' && review.status !== 'auto_posted' && review.status !== 'approved'
             const isEscalated = review.status === 'needs_review' || action?.decision === 'escalate'
             const isBlocked = (() => {
               const tr = action?.agent_trace as { steps?: Array<{ step: string; passed?: boolean }> } | null
@@ -298,6 +299,8 @@ export default function AgentsClient({
               ? 'var(--color-success)'
               : isBlocked
               ? 'var(--color-warning)'
+              : isAwaitingApproval
+              ? 'var(--color-muted)'
               : isEscalated
               ? 'var(--color-escalate)'
               : 'var(--color-muted)'
@@ -308,6 +311,8 @@ export default function AgentsClient({
               ? 'auto-posted'
               : isBlocked
               ? 'blocked'
+              : isAwaitingApproval
+              ? 'awaiting approval'
               : isEscalated
               ? 'escalated'
               : review.status
