@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { cn, formatDistanceToNow } from '@/lib/utils'
@@ -88,6 +88,16 @@ export default function ReviewsClient({ reviews: initialReviews, replyMode }: { 
   )
   const [postedIds, setPostedIds] = useState<Set<string>>(new Set())
   const [locallyApprovedIds, setLocallyApprovedIds] = useState<Set<string>>(new Set())
+  const isDirtyRef = useRef(false)
+
+  function trySelectReview(id: string) {
+    if (id === selectedId) return
+    if (isDirtyRef.current) {
+      const discard = window.confirm('You have unsaved changes to the draft reply. Discard them?')
+      if (!discard) return
+    }
+    setSelectedId(id)
+  }
 
   useEffect(() => {
     const supabase = createClient()
@@ -276,7 +286,7 @@ export default function ReviewsClient({ reviews: initialReviews, replyMode }: { 
             return (
               <button
                 key={review.id}
-                onClick={() => setSelectedId(review.id)}
+                onClick={() => trySelectReview(review.id)}
                 className={cn('w-full text-left border-b', HEARD_FOCUS_CLASS)}
                 style={{
                   borderColor: 'var(--color-border)',
@@ -369,6 +379,7 @@ export default function ReviewsClient({ reviews: initialReviews, replyMode }: { 
             key={selected.id}
             review={selected}
             onPosted={() => handlePosted(selected.id)}
+            onDirtyChange={(dirty) => { isDirtyRef.current = dirty }}
           />
         ) : (
           <div className="flex items-center justify-center h-full">
@@ -385,18 +396,27 @@ export default function ReviewsClient({ reviews: initialReviews, replyMode }: { 
 function ReviewDetail({
   review,
   onPosted,
+  onDirtyChange,
 }: {
   review: Review
   onPosted: () => void
+  onDirtyChange?: (dirty: boolean) => void
 }) {
   const action = getAction(review)
+  const originalDraft = useRef(action?.draft_reply ?? '')
   const [draft, setDraft] = useState(action?.draft_reply ?? '')
   const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [posted, setPosted] = useState(
     review.status === 'auto_posted' || review.status === 'approved',
   )
   const [editMode, setEditMode] = useState(false)
   const [approveError, setApproveError] = useState<string | null>(null)
+  const hasUnsavedChanges = draft !== originalDraft.current
+
+  useEffect(() => {
+    onDirtyChange?.(hasUnsavedChanges)
+  }, [hasUnsavedChanges, onDirtyChange])
 
   const isManualPaste = review.status === 'reply_pending_manual'
   const isGoogleManual = review.source === 'google_business' && isManualPaste
@@ -421,8 +441,21 @@ function ReviewDetail({
     setLoading(false)
   }
 
-  async function handleReject() {
-    await fetch(`/api/reviews/${review.id}/reject`, { method: 'POST' })
+  async function handleSave() {
+    setSaving(true)
+    const res = await fetch(`/api/reviews/${review.id}/save-draft`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ draft }),
+    })
+    if (res.ok) {
+      originalDraft.current = draft
+      onDirtyChange?.(false)
+      toast('Draft saved')
+    } else {
+      toast('Failed to save draft')
+    }
+    setSaving(false)
   }
 
   return (
@@ -525,10 +558,7 @@ function ReviewDetail({
             onBlur={() => setEditMode(false)}
           />
 
-          <div className="flex items-center justify-between mt-1">
-            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)' }}>
-              AI-generated · {review.source === 'judgeme' ? 'Judge.me' : 'Google'} brand voice
-            </p>
+          <div className="flex items-center justify-end mt-1">
             <button
               className={HEARD_FOCUS_CLASS}
               style={{
@@ -549,21 +579,16 @@ function ReviewDetail({
       {/* Action buttons */}
       {!posted && action && (
         <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            onClick={handleReject}
-            className={cn('text-muted hover:text-muted hover:bg-transparent text-sm shadow-none px-1', HEARD_FOCUS_CLASS)}
-          >
-            Skip
-          </Button>
-
-          <Button
-            variant="outline"
-            onClick={() => setEditMode(true)}
-            className={cn('border-border text-text hover:bg-surface hover:text-text text-sm shadow-none', HEARD_FOCUS_CLASS)}
-          >
-            Request Edit
-          </Button>
+          {hasUnsavedChanges && (
+            <Button
+              variant="outline"
+              onClick={handleSave}
+              disabled={saving}
+              className={cn('border-border text-text hover:bg-surface hover:text-text text-sm shadow-none', HEARD_FOCUS_CLASS)}
+            >
+              {saving ? 'Saving...' : 'Save'}
+            </Button>
+          )}
 
           {isGoogleManual ? (
             <ManualPasteButton reviewId={review.id} draft={draft} onPosted={onPosted} />

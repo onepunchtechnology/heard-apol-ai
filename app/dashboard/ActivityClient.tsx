@@ -1,15 +1,19 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, LabelList, Cell,
   LineChart, Line, Legend, Tooltip, ResponsiveContainer,
+  PieChart, Pie,
 } from 'recharts'
+import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { cn, formatDistanceToNow } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
+import { Textarea } from '@/components/ui/textarea'
 
 const BADGE_BASE_CLASS =
   'shadow-none font-normal rounded-sm text-[11px] py-[3px] px-2 leading-none border-transparent'
@@ -23,6 +27,13 @@ interface StatusCounts {
   imported: number
 }
 
+interface EscalatedAction {
+  risk_score: number
+  sentiment_label: string
+  agent_reasoning: string
+  draft_reply: string | null
+}
+
 interface EscalatedReview {
   id: string
   reviewer_name: string
@@ -31,21 +42,20 @@ interface EscalatedReview {
   source: string
   received_at: string
   status: string
-  review_actions: {
-    risk_score: number
-    sentiment_label: string
-    agent_reasoning: string
-  } | {
-    risk_score: number
-    sentiment_label: string
-    agent_reasoning: string
-  }[] | null
+  review_actions: EscalatedAction | EscalatedAction[] | null
+}
+
+interface SentimentCounts {
+  positive: number
+  neutral: number
+  negative: number
 }
 
 interface ActivityClientProps {
   lastRunAt: string | null
   storeCount: number
   statusCounts: StatusCounts
+  sentimentCounts: SentimentCounts
   reviewsTrend: number[]
   repliesTrend: number[]
   recentEscalated: EscalatedReview[]
@@ -86,6 +96,7 @@ export default function ActivityClient({
   lastRunAt: initialLastRunAt,
   storeCount,
   statusCounts: initialStatusCounts,
+  sentimentCounts: initialSentimentCounts,
   reviewsTrend: initialReviewsTrend,
   repliesTrend: initialRepliesTrend,
   recentEscalated: initialEscalated,
@@ -93,6 +104,7 @@ export default function ActivityClient({
 }: ActivityClientProps) {
   const [lastRunAt, setLastRunAt] = useState<string | null>(initialLastRunAt)
   const [statusCounts, setStatusCounts] = useState<StatusCounts>(initialStatusCounts)
+  const [sentimentCounts, setSentimentCounts] = useState<SentimentCounts>(initialSentimentCounts)
   const [reviewsTrend, setReviewsTrend] = useState<number[]>(initialReviewsTrend)
   const [repliesTrend, setRepliesTrend] = useState<number[]>(initialRepliesTrend)
   const [recentEscalated, setRecentEscalated] = useState<EscalatedReview[]>(initialEscalated)
@@ -109,6 +121,7 @@ export default function ActivityClient({
         { data: escalated },
         { data: newRepliesRows },
         { data: newReviewsRows },
+        { data: sentimentRows },
       ] = await Promise.all([
         supabase
           .from('agent_runs')
@@ -122,7 +135,7 @@ export default function ActivityClient({
           .from('reviews')
           .select(`
             id, reviewer_name, rating, body, source, received_at, status,
-            review_actions (risk_score, sentiment_label, agent_reasoning)
+            review_actions (risk_score, sentiment_label, agent_reasoning, draft_reply)
           `)
           .in('status', ['needs_review', 'reply_pending_manual'])
           .order('received_at', { ascending: false })
@@ -137,10 +150,25 @@ export default function ActivityClient({
           .select('received_at')
           .not('status', 'eq', 'imported')
           .gte('received_at', sevenDaysAgo),
+        supabase
+          .from('review_actions')
+          .select('sentiment_label'),
       ])
 
       setLastRunAt((runs?.[0] as { completed_at: string | null } | undefined)?.completed_at ?? null)
       setStatusCounts(computeStatusCounts(latestStatuses ?? []))
+      setSentimentCounts(
+        (sentimentRows ?? []).reduce(
+          (acc, r) => {
+            const label = (r as { sentiment_label: string | null }).sentiment_label
+            if (label === 'positive') acc.positive++
+            else if (label === 'negative') acc.negative++
+            else if (label === 'neutral') acc.neutral++
+            return acc
+          },
+          { positive: 0, neutral: 0, negative: 0 }
+        )
+      )
       setRepliesTrend(bucketByDay(newRepliesRows ?? []))
       setReviewsTrend(bucketByDay(newReviewsRows ?? []))
       setRecentEscalated((escalated ?? []) as EscalatedReview[])
@@ -176,13 +204,18 @@ export default function ActivityClient({
       {/* Row 1: Hackathon panel */}
       {isDemoAccount && <HackathonPanel />}
 
-      {/* Row 2: Charts */}
-      <div className="grid grid-cols-2 gap-6 mb-8">
-        <StatusPipelineChart statusCounts={statusCounts} />
+      {/* Row 2: Trend chart (full width) */}
+      <div className="mb-6">
         <ReviewsTrendChart reviewsTrend={reviewsTrend} repliesTrend={repliesTrend} />
       </div>
 
-      {/* Row 3: Escalation queue */}
+      {/* Row 3: Pipeline + Sentiment */}
+      <div className="grid grid-cols-2 gap-6 mb-8">
+        <StatusPipelineChart statusCounts={statusCounts} />
+        <SentimentPieChart sentimentCounts={sentimentCounts} />
+      </div>
+
+      {/* Row 4: Escalation queue */}
       <EscalationQueue reviews={recentEscalated} />
     </div>
   )
@@ -340,6 +373,99 @@ function ReviewsTrendChart({ reviewsTrend, repliesTrend }: { reviewsTrend: numbe
   )
 }
 
+const SENTIMENT_COLORS = [
+  { label: 'Positive', color: '#D0F4DE', stroke: '#216F3F' },
+  { label: 'Neutral', color: '#FCF6BD', stroke: '#6B5904' },
+  { label: 'Negative', color: '#FCEAE4', stroke: '#8C4A35' },
+]
+
+function SentimentPieChart({ sentimentCounts }: { sentimentCounts: SentimentCounts }) {
+  const total = sentimentCounts.positive + sentimentCounts.neutral + sentimentCounts.negative
+  const data = [
+    { name: 'Positive', value: sentimentCounts.positive },
+    { name: 'Neutral', value: sentimentCounts.neutral },
+    { name: 'Negative', value: sentimentCounts.negative },
+  ]
+
+  return (
+    <Card className="rounded-md border-border bg-bg shadow-[0_1px_3px_rgba(45,0,19,0.06)]">
+      <CardContent className="p-6">
+        <p style={{ fontSize: 'var(--text-base)', fontWeight: 500, color: 'var(--color-text)', marginBottom: '4px' }}>
+          Sentiment Analysis
+        </p>
+        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', marginBottom: '20px' }}>
+          {total} reviews analyzed
+        </p>
+        {total === 0 ? (
+          <div className="flex items-center justify-center" style={{ height: 180 }}>
+            <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-muted)' }}>No data yet</p>
+          </div>
+        ) : (
+          <div className="flex items-center gap-6">
+            <ResponsiveContainer width="55%" height={180}>
+              <PieChart>
+                <Pie
+                  data={data}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={40}
+                  outerRadius={72}
+                  paddingAngle={2}
+                  dataKey="value"
+                  strokeWidth={1}
+                >
+                  {data.map((_, idx) => (
+                    <Cell
+                      key={`cell-${idx}`}
+                      fill={SENTIMENT_COLORS[idx].color}
+                      stroke={SENTIMENT_COLORS[idx].stroke}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(value: number, name: string) => [value, name]}
+                  contentStyle={{
+                    borderColor: '#FFC2DE',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontFamily: 'Epilogue, sans-serif',
+                    backgroundColor: '#FFFFFF',
+                    color: '#2D0013',
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="flex flex-col gap-3">
+              {data.map((entry, idx) => {
+                const pct = total > 0 ? Math.round((entry.value / total) * 100) : 0
+                return (
+                  <div key={entry.name} className="flex items-center gap-2">
+                    <span
+                      className="inline-block rounded-sm flex-shrink-0"
+                      style={{
+                        width: 10,
+                        height: 10,
+                        backgroundColor: SENTIMENT_COLORS[idx].color,
+                        border: `1px solid ${SENTIMENT_COLORS[idx].stroke}`,
+                      }}
+                    />
+                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text)', minWidth: 56 }}>
+                      {entry.name}
+                    </span>
+                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', fontVariantNumeric: 'tabular-nums' }}>
+                      {entry.value} ({pct}%)
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 function TrendAxisTick({ x, y, payload }: { x?: number; y?: number; payload?: { value: string } }) {
   if (!x || !y || !payload) return null
   const parts = payload.value.split(' ')
@@ -357,7 +483,17 @@ function TrendAxisTick({ x, y, payload }: { x?: number; y?: number; payload?: { 
   )
 }
 
-function EscalationQueue({ reviews }: { reviews: EscalatedReview[] }) {
+function EscalationQueue({ reviews: initialReviews }: { reviews: EscalatedReview[] }) {
+  const [reviews, setReviews] = useState(initialReviews)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+
+  useEffect(() => { setReviews(initialReviews) }, [initialReviews])
+
+  function handleApproved(id: string) {
+    setExpandedId(null)
+    setReviews((prev) => prev.filter((r) => r.id !== id))
+  }
+
   return (
     <Card className="rounded-md border-border bg-bg shadow-[0_1px_3px_rgba(45,0,19,0.06)]">
       <CardHeader className="flex flex-row items-center justify-between px-6 py-4 space-y-0 border-b border-border">
@@ -401,6 +537,7 @@ function EscalationQueue({ reviews }: { reviews: EscalatedReview[] }) {
                 ? review.review_actions[0]
                 : review.review_actions
               const isLast = idx === reviews.length - 1
+              const isExpanded = expandedId === review.id
               const reasonTag =
                 action?.sentiment_label === 'negative'
                   ? action.risk_score >= 7
@@ -412,10 +549,21 @@ function EscalationQueue({ reviews }: { reviews: EscalatedReview[] }) {
 
               return (
                 <div key={review.id}>
-                  <div
+                  <button
+                    type="button"
+                    onClick={() => setExpandedId(isExpanded ? null : review.id)}
+                    className="w-full text-left"
                     style={{
                       borderLeft: '3px solid var(--color-escalate)',
                       padding: '12px 24px 12px 21px',
+                      cursor: 'pointer',
+                      backgroundColor: isExpanded ? 'var(--color-surface)' : 'transparent',
+                      transition: 'background-color 0.15s ease',
+                      display: 'block',
+                      border: 'none',
+                      borderLeftStyle: 'solid',
+                      borderLeftWidth: '3px',
+                      borderLeftColor: 'var(--color-escalate)',
                     }}
                   >
                     <div className="flex items-center gap-2 mb-1">
@@ -431,7 +579,7 @@ function EscalationQueue({ reviews }: { reviews: EscalatedReview[] }) {
                       </span>
                     </div>
                     <p
-                      className="line-clamp-1 mb-1"
+                      className={isExpanded ? 'mb-1' : 'line-clamp-1 mb-1'}
                       style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text)' }}
                     >
                       {review.body}
@@ -446,7 +594,14 @@ function EscalationQueue({ reviews }: { reviews: EscalatedReview[] }) {
                         </span>
                       )}
                     </div>
-                  </div>
+                  </button>
+                  {isExpanded && action?.draft_reply && (
+                    <InlineDraftEditor
+                      reviewId={review.id}
+                      initialDraft={action.draft_reply}
+                      onApproved={() => handleApproved(review.id)}
+                    />
+                  )}
                   {!isLast && <Separator />}
                 </div>
               )
@@ -455,6 +610,100 @@ function EscalationQueue({ reviews }: { reviews: EscalatedReview[] }) {
         )}
       </CardContent>
     </Card>
+  )
+}
+
+const HEARD_FOCUS_CLASS =
+  'focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-dim focus-visible:outline-offset-2'
+
+function InlineDraftEditor({
+  reviewId,
+  initialDraft,
+  onApproved,
+}: {
+  reviewId: string
+  initialDraft: string
+  onApproved: () => void
+}) {
+  const [draft, setDraft] = useState(initialDraft)
+  const originalDraft = useRef(initialDraft)
+  const [saving, setSaving] = useState(false)
+  const [posting, setPosting] = useState(false)
+  const hasChanges = draft !== originalDraft.current
+
+  async function handleSave() {
+    setSaving(true)
+    const res = await fetch(`/api/reviews/${reviewId}/save-draft`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ draft }),
+    })
+    if (res.ok) {
+      originalDraft.current = draft
+      toast('Draft saved')
+    } else {
+      toast('Failed to save draft')
+    }
+    setSaving(false)
+  }
+
+  async function handleApprove() {
+    setPosting(true)
+    const res = await fetch(`/api/reviews/${reviewId}/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reply: draft }),
+    })
+    if (res.ok) {
+      toast('Reply posted')
+      onApproved()
+    } else {
+      const body = await res.json().catch(() => ({}))
+      toast(body.error ?? 'Failed to post reply')
+    }
+    setPosting(false)
+  }
+
+  return (
+    <div
+      style={{
+        borderLeft: '3px solid var(--color-escalate)',
+        padding: '0 24px 16px 21px',
+        backgroundColor: 'var(--color-surface)',
+      }}
+    >
+      <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', marginBottom: '6px' }}>
+        Draft reply
+      </p>
+      <Textarea
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        rows={4}
+        className={cn(
+          'bg-bg text-sm resize-none font-sans outline-none border-border',
+          HEARD_FOCUS_CLASS,
+        )}
+      />
+      <div className="flex items-center gap-2 mt-2">
+        {hasChanges && (
+          <Button
+            variant="outline"
+            onClick={handleSave}
+            disabled={saving}
+            className={cn('border-border text-text hover:bg-surface hover:text-text text-xs shadow-none h-8', HEARD_FOCUS_CLASS)}
+          >
+            {saving ? 'Saving...' : 'Save'}
+          </Button>
+        )}
+        <Button
+          onClick={handleApprove}
+          disabled={posting}
+          className={cn('bg-accent text-text hover:bg-accent/90 text-xs font-medium shadow-none h-8', HEARD_FOCUS_CLASS)}
+        >
+          {posting ? 'Posting...' : 'Approve & Post'}
+        </Button>
+      </div>
+    </div>
   )
 }
 

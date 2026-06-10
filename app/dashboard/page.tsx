@@ -28,6 +28,7 @@ export default async function ActivityPage() {
     { data: recentEscalated },
     { data: repliesTrendRows },
     { data: reviewsTrendRows },
+    { data: sentimentRows },
   ] = await Promise.all([
     supabase
       .from('agent_runs')
@@ -45,7 +46,7 @@ export default async function ActivityPage() {
       .from('reviews')
       .select(`
         id, reviewer_name, rating, body, source, received_at, status,
-        review_actions (risk_score, sentiment_label, agent_reasoning)
+        review_actions (risk_score, sentiment_label, agent_reasoning, draft_reply)
       `)
       .in('status', ['needs_review', 'reply_pending_manual'])
       .order('received_at', { ascending: false })
@@ -60,6 +61,9 @@ export default async function ActivityPage() {
       .select('received_at')
       .not('status', 'eq', 'imported')
       .gte('received_at', sevenDaysAgo),
+    supabase
+      .from('review_actions')
+      .select('sentiment_label'),
   ])
 
   const statusCounts = (allStatuses ?? []).reduce(
@@ -75,6 +79,17 @@ export default async function ActivityPage() {
     { pending: 0, processing: 0, needsAttention: 0, autoPosted: 0, failed: 0, imported: 0 }
   )
 
+  const sentimentCounts = (sentimentRows ?? []).reduce(
+    (acc, r) => {
+      const label = (r as { sentiment_label: string | null }).sentiment_label
+      if (label === 'positive') acc.positive++
+      else if (label === 'negative') acc.negative++
+      else if (label === 'neutral') acc.neutral++
+      return acc
+    },
+    { positive: 0, neutral: 0, negative: 0 }
+  )
+
   const { data: { user } } = await supabase.auth.getUser()
 
   return (
@@ -82,6 +97,7 @@ export default async function ActivityPage() {
       lastRunAt={(latestRun as { completed_at: string | null } | null)?.completed_at ?? null}
       storeCount={storeCount ?? 1}
       statusCounts={statusCounts}
+      sentimentCounts={sentimentCounts}
       reviewsTrend={bucketByDay(reviewsTrendRows ?? [])}
       repliesTrend={bucketByDay(repliesTrendRows ?? [])}
       recentEscalated={recentEscalated ?? []}
