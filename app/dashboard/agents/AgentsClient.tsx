@@ -2,7 +2,16 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { formatDistanceToNow } from '@/lib/utils'
+import { cn, formatDistanceToNow } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
+import { Separator } from '@/components/ui/separator'
+
+const HEARD_FOCUS_CLASS =
+  'focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-dim focus-visible:outline-offset-2'
+
+const BADGE_BASE_CLASS =
+  'shadow-none font-normal rounded-sm text-[11px] py-[3px] px-2 leading-none border-transparent'
 
 interface AgentRun {
   id: string
@@ -233,27 +242,27 @@ export default function AgentsClient({
           {' · '}{totalAutoPosted} auto-posted
           {' · '}{totalEscalated} escalated
         </p>
-        <div className="flex gap-2">
-          {FILTERS.map((f) => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              style={{
-                height: '32px',
-                padding: '0 12px',
-                borderRadius: 'var(--radius-sm)',
-                fontSize: 'var(--text-xs)',
-                fontWeight: filter === f ? 500 : 400,
-                border: 'none',
-                cursor: 'pointer',
-                backgroundColor: filter === f ? 'var(--color-accent)' : 'var(--color-surface)',
-                color: filter === f ? 'var(--color-text)' : 'var(--color-muted)',
-                transition: `background-color var(--duration-short) var(--ease-out)`,
-              }}
-            >
-              {f}
-            </button>
-          ))}
+        <div className="flex gap-2 overflow-x-auto" aria-label="Agent run filters">
+          {FILTERS.map((f) => {
+            const selected = filter === f
+            return (
+              <button
+                key={f}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => setFilter(f)}
+                className={cn(
+                  'h-8 flex-shrink-0 rounded-sm px-3 text-xs transition-colors',
+                  selected
+                    ? 'bg-accent text-text font-medium'
+                    : 'bg-surface text-muted font-normal hover:bg-surface-2',
+                  HEARD_FOCUS_CLASS
+                )}
+              >
+                {f}
+              </button>
+            )
+          })}
         </div>
       </div>
 
@@ -303,24 +312,14 @@ export default function AgentsClient({
               ? 'escalated'
               : review.status
 
-            const outcomeStyle = isProcessing
-              ? { bg: 'var(--color-warning-bg)', color: 'var(--color-warning)' }
-              : isAutoPosted
-              ? { bg: 'var(--color-success-bg)', color: 'var(--color-success)' }
-              : isBlocked
-              ? { bg: 'var(--color-warning-bg)', color: 'var(--color-warning)' }
-              : isEscalated
-              ? { bg: 'var(--color-escalate-bg)', color: 'var(--color-escalate)' }
-              : { bg: 'var(--color-surface)', color: 'var(--color-muted)' }
-
             const traceLines = parseTrace(action?.agent_trace)
 
             return (
-              <div key={review.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
+              <div key={review.id}>
                 {/* Collapsed row */}
                 <button
                   onClick={() => setExpandedId(isExpanded ? null : review.id)}
-                  className="w-full text-left"
+                  className={cn('w-full text-left', HEARD_FOCUS_CLASS)}
                   style={{
                     height: '56px',
                     display: 'flex',
@@ -383,21 +382,19 @@ export default function AgentsClient({
                   </span>
 
                   {/* Outcome badge */}
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      lineHeight: 1,
-                      fontSize: 'var(--text-xs)',
-                      backgroundColor: outcomeStyle.bg,
-                      color: outcomeStyle.color,
-                      padding: '3px 8px',
-                      borderRadius: 'var(--radius-sm)',
-                      flexShrink: 0,
-                    }}
+                  <Badge
+                    className={cn(
+                      BADGE_BASE_CLASS,
+                      'flex-shrink-0',
+                      isProcessing && 'bg-warning-bg text-warning hover:bg-warning-bg pulse',
+                      isAutoPosted && !isProcessing && 'bg-success-bg text-success hover:bg-success-bg',
+                      isBlocked && !isProcessing && !isAutoPosted && 'bg-warning-bg text-warning hover:bg-warning-bg',
+                      isEscalated && !isProcessing && !isAutoPosted && !isBlocked && 'bg-escalate-bg text-escalate hover:bg-escalate-bg',
+                      !isProcessing && !isAutoPosted && !isBlocked && !isEscalated && 'bg-surface text-muted hover:bg-surface'
+                    )}
                   >
                     {outcomeLabel}
-                  </span>
+                  </Badge>
 
                   {/* Timestamp */}
                   <span
@@ -420,102 +417,97 @@ export default function AgentsClient({
                 {/* Expanded trace */}
                 {isExpanded && (
                   <div style={{ padding: '0 24px 16px 24px' }}>
-                    <div
-                      style={{
-                        backgroundColor: 'var(--color-surface)',
-                        border: '1px solid var(--color-border)',
-                        borderRadius: 'var(--radius-md)',
-                        padding: '16px',
-                        marginTop: '8px',
-                      }}
-                    >
-                      {/* Trace steps */}
-                      <div
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '6px',
-                          marginBottom: action?.draft_reply ? '12px' : '0',
-                        }}
-                      >
-                        {traceLines.length > 0 ? (
-                          traceLines.map((line, i) => (
-                            <div key={i} style={{ display: 'flex', gap: '12px', alignItems: 'baseline' }}>
-                              <span
-                                style={{
-                                  fontFamily: '"Martian Mono", monospace',
-                                  fontSize: '12px',
-                                  color: line.color,
-                                  width: '120px',
-                                  flexShrink: 0,
-                                  textAlign: 'right',
-                                }}
-                              >
-                                {line.label}
-                              </span>
-                              <span
-                                style={{ fontFamily: '"Martian Mono", monospace', fontSize: '12px', color: 'var(--color-muted)' }}
-                              >
-                                →
-                              </span>
-                              <span
-                                style={{ fontFamily: '"Martian Mono", monospace', fontSize: '12px', color: 'var(--color-text)' }}
-                              >
-                                {line.data}
-                              </span>
-                            </div>
-                          ))
-                        ) : (
-                          <p style={{ fontFamily: '"Martian Mono", monospace', fontSize: '12px', color: 'var(--color-muted)' }}>
-                            no trace available
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Draft reply sub-card */}
-                      {action?.draft_reply && (
+                    <Card className="mt-2 rounded-md border-border bg-surface shadow-none">
+                      <CardContent className="p-4">
+                        {/* Trace steps */}
                         <div
                           style={{
-                            borderTop: '1px solid var(--color-border)',
-                            paddingTop: '12px',
-                            marginTop: '4px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '6px',
+                            marginBottom: action?.draft_reply ? '12px' : '0',
                           }}
                         >
-                          <p
-                            style={{
-                              fontSize: 'var(--text-xs)',
-                              color: 'var(--color-muted)',
-                              marginBottom: '6px',
-                            }}
-                          >
-                            Draft reply
-                          </p>
+                          {traceLines.length > 0 ? (
+                            traceLines.map((line, i) => (
+                              <div key={i} style={{ display: 'flex', gap: '12px', alignItems: 'baseline' }}>
+                                <span
+                                  style={{
+                                    fontFamily: '"Martian Mono", monospace',
+                                    fontSize: '12px',
+                                    color: line.color,
+                                    width: '120px',
+                                    flexShrink: 0,
+                                    textAlign: 'right',
+                                  }}
+                                >
+                                  {line.label}
+                                </span>
+                                <span
+                                  style={{ fontFamily: '"Martian Mono", monospace', fontSize: '12px', color: 'var(--color-muted)' }}
+                                >
+                                  →
+                                </span>
+                                <span
+                                  style={{ fontFamily: '"Martian Mono", monospace', fontSize: '12px', color: 'var(--color-text)' }}
+                                >
+                                  {line.data}
+                                </span>
+                              </div>
+                            ))
+                          ) : (
+                            <p style={{ fontFamily: '"Martian Mono", monospace', fontSize: '12px', color: 'var(--color-muted)' }}>
+                              no trace available
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Draft reply sub-card */}
+                        {action?.draft_reply && (
                           <div
                             style={{
-                              backgroundColor: 'var(--color-surface-2)',
-                              borderRadius: 'var(--radius-md)',
-                              padding: '10px 12px',
+                              borderTop: '1px solid var(--color-border)',
+                              paddingTop: '12px',
+                              marginTop: '4px',
                             }}
                           >
                             <p
                               style={{
-                                fontSize: '14px',
-                                fontStyle: 'italic',
-                                color: 'var(--color-text)',
-                                margin: 0,
-                                lineHeight: 1.6,
+                                fontSize: 'var(--text-xs)',
+                                color: 'var(--color-muted)',
+                                marginBottom: '6px',
                               }}
                             >
-                              {action.draft_reply}
+                              Draft reply
                             </p>
+                            <div
+                              style={{
+                                backgroundColor: 'var(--color-surface-2)',
+                                borderRadius: 'var(--radius-md)',
+                                padding: '10px 12px',
+                              }}
+                            >
+                              <p
+                                style={{
+                                  fontSize: '14px',
+                                  fontStyle: 'italic',
+                                  color: 'var(--color-text)',
+                                  margin: 0,
+                                  lineHeight: 1.6,
+                                }}
+                              >
+                                {action.draft_reply}
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
+                        )}
+                      </CardContent>
+                    </Card>
 
                     {/* Collapse link */}
                     <button
                       onClick={() => setExpandedId(null)}
+                      className={HEARD_FOCUS_CLASS}
                       style={{
                         display: 'block',
                         margin: '8px auto 0',
@@ -530,6 +522,7 @@ export default function AgentsClient({
                     </button>
                   </div>
                 )}
+                <Separator />
               </div>
             )
           })}
@@ -542,20 +535,8 @@ export default function AgentsClient({
 function PlatformBadge({ source }: { source: string }) {
   const label = source === 'judgeme' ? 'Judge.me' : source === 'google_business' ? 'Google' : source
   return (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        lineHeight: 1,
-        fontSize: 'var(--text-xs)',
-        backgroundColor: 'var(--color-surface-2)',
-        color: 'var(--color-muted)',
-        padding: '3px 7px',
-        borderRadius: 'var(--radius-sm)',
-        flexShrink: 0,
-      }}
-    >
+    <Badge className="shadow-none font-normal rounded-sm text-[11px] py-[3px] px-2 leading-none border-transparent bg-surface-2 text-muted hover:bg-surface-2 flex-shrink-0">
       {label}
-    </span>
+    </Badge>
   )
 }

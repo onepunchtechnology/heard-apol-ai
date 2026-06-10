@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import NavItem from '@/components/ui/NavItem'
+import { Toaster } from '@/components/ui/sonner'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,17 +13,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!user) redirect('/login')
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ backgroundColor: 'var(--color-bg)' }}>
+    <div className="flex h-screen flex-col overflow-hidden bg-bg md:flex-row">
       <aside
-        className="flex flex-col flex-shrink-0"
-        style={{
-          width: '220px',
-          backgroundColor: 'var(--color-accent)',
-          borderRight: '1px solid var(--color-border)',
-        }}
+        className="flex w-full flex-shrink-0 flex-col border-b border-accent-dim bg-accent md:w-[220px] md:border-b-0 md:border-r md:border-border"
       >
         <div
-          className="px-6 py-6 border-b"
+          className="flex items-center justify-between gap-4 border-b px-4 py-3 md:block md:px-6 md:py-6"
           style={{ borderColor: 'var(--color-accent-dim)' }}
         >
           <Link href="/dashboard">
@@ -39,9 +35,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
               by apol.ai
             </span>
           </Link>
+          <p
+            style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text)', opacity: 0.6 }}
+            className="max-w-[180px] truncate md:hidden"
+          >
+            {user.email}
+          </p>
         </div>
 
-        <nav className="flex flex-col py-4 flex-1">
+        <nav className="flex min-w-0 flex-row overflow-x-auto md:flex-1 md:flex-col md:overflow-visible md:py-4">
           <NavItem href="/dashboard" label="Activity" exact />
           <NavItem href="/dashboard/reviews" label="Reviews" />
           <NavItem href="/dashboard/agents" label="Agents" />
@@ -49,7 +51,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </nav>
 
         <div
-          className="px-6 py-4 border-t"
+          className="hidden border-t px-6 py-4 md:block"
           style={{ borderColor: 'var(--color-accent-dim)' }}
         >
           <p
@@ -61,9 +63,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto" style={{ backgroundColor: 'var(--color-bg)' }}>
+      <main className="min-h-0 flex-1 overflow-y-auto bg-bg">
         {children}
       </main>
+      <Toaster position="bottom-right" />
     </div>
   )
 }

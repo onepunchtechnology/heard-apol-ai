@@ -6,7 +6,13 @@ import {
   LineChart, Line, Legend, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import { createClient } from '@/lib/supabase/client'
-import { formatDistanceToNow } from '@/lib/utils'
+import { cn, formatDistanceToNow } from '@/lib/utils'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Separator } from '@/components/ui/separator'
+
+const BADGE_BASE_CLASS =
+  'shadow-none font-normal rounded-sm text-[11px] py-[3px] px-2 leading-none border-transparent'
 
 interface StatusCounts {
   pending: number
@@ -195,61 +201,57 @@ function StatusPipelineChart({ statusCounts }: { statusCounts: StatusCounts }) {
   ]
 
   return (
-    <div style={{
-      backgroundColor: 'var(--color-bg)',
-      border: '1px solid var(--color-border)',
-      borderRadius: 'var(--radius-md)',
-      boxShadow: '0 1px 3px rgba(45, 0, 19, 0.06)',
-      padding: '24px',
-    }}>
-      <p style={{ fontSize: 'var(--text-base)', fontWeight: 500, color: 'var(--color-text)', marginBottom: '4px' }}>
-        Review Pipeline
-      </p>
-      <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', marginBottom: '20px' }}>
-        Reviews by current status
-      </p>
-      <ResponsiveContainer width="100%" height={180}>
-        <BarChart
-          layout="vertical"
-          data={pipelineData}
-          margin={{ top: 0, right: 36, left: 0, bottom: 0 }}
-        >
-          <CartesianGrid horizontal={false} stroke="#FFC2DE" strokeDasharray="3 3" />
-          <YAxis
-            dataKey="label"
-            type="category"
-            tickLine={false}
-            axisLine={false}
-            tick={{ fontSize: 11, fill: '#8B003D', fontFamily: 'Epilogue, sans-serif' }}
-            width={108}
-          />
-          <XAxis type="number" hide />
-          <Tooltip
-            cursor={{ fill: '#FFF0F7' }}
-            formatter={(value: number) => [value, 'Reviews']}
-            contentStyle={{
-              borderColor: '#FFC2DE',
-              borderRadius: '8px',
-              fontSize: '12px',
-              fontFamily: 'Epilogue, sans-serif',
-              backgroundColor: '#FFFFFF',
-              color: '#2D0013',
-            }}
-          />
-          <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={22} minPointSize={2}>
-            {pipelineData.map((entry, idx) => (
-              <Cell key={`cell-${idx}`} fill={entry.bg} stroke={entry.fg} strokeWidth={0.75} />
-            ))}
-            <LabelList
-              dataKey="value"
-              position="right"
-              offset={8}
-              style={{ fontSize: '12px', fontFamily: 'Epilogue, sans-serif', fill: '#2D0013', fontWeight: 500 }}
+    <Card className="rounded-md border-border bg-bg shadow-[0_1px_3px_rgba(45,0,19,0.06)]">
+      <CardContent className="p-6">
+        <p style={{ fontSize: 'var(--text-base)', fontWeight: 500, color: 'var(--color-text)', marginBottom: '4px' }}>
+          Review Pipeline
+        </p>
+        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', marginBottom: '20px' }}>
+          Reviews by current status
+        </p>
+        <ResponsiveContainer width="100%" height={180}>
+          <BarChart
+            layout="vertical"
+            data={pipelineData}
+            margin={{ top: 0, right: 36, left: 0, bottom: 0 }}
+          >
+            <CartesianGrid horizontal={false} stroke="#FFC2DE" strokeDasharray="3 3" />
+            <YAxis
+              dataKey="label"
+              type="category"
+              tickLine={false}
+              axisLine={false}
+              tick={{ fontSize: 11, fill: '#8B003D', fontFamily: 'Epilogue, sans-serif' }}
+              width={108}
             />
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
+            <XAxis type="number" hide />
+            <Tooltip
+              cursor={{ fill: '#FFF0F7' }}
+              formatter={(value: number) => [value, 'Reviews']}
+              contentStyle={{
+                borderColor: '#FFC2DE',
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontFamily: 'Epilogue, sans-serif',
+                backgroundColor: '#FFFFFF',
+                color: '#2D0013',
+              }}
+            />
+            <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={22} minPointSize={2}>
+              {pipelineData.map((entry, idx) => (
+                <Cell key={`cell-${idx}`} fill={entry.bg} stroke={entry.fg} strokeWidth={0.75} />
+              ))}
+              <LabelList
+                dataKey="value"
+                position="right"
+                offset={8}
+                style={{ fontSize: '12px', fontFamily: 'Epilogue, sans-serif', fill: '#2D0013', fontWeight: 500 }}
+              />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -272,73 +274,69 @@ function ReviewsTrendChart({ reviewsTrend, repliesTrend }: { reviewsTrend: numbe
   const maxVal = Math.max(...reviewsTrend, ...repliesTrend, 4)
 
   return (
-    <div style={{
-      backgroundColor: 'var(--color-bg)',
-      border: '1px solid var(--color-border)',
-      borderRadius: 'var(--radius-md)',
-      boxShadow: '0 1px 3px rgba(45, 0, 19, 0.06)',
-      padding: '24px',
-    }}>
-      <p style={{ fontSize: 'var(--text-base)', fontWeight: 500, color: 'var(--color-text)', marginBottom: '4px' }}>
-        Reviews &amp; Replies
-      </p>
-      <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', marginBottom: '20px' }}>
-        Last 7 days
-      </p>
-      <ResponsiveContainer width="100%" height={180}>
-        <LineChart data={chartData} margin={{ top: 4, right: 8, left: -8, bottom: 32 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#FFC2DE" vertical={false} />
-          <XAxis
-            dataKey="tick"
-            tickLine={false}
-            axisLine={false}
-            interval={0}
-            tick={<TrendAxisTick />}
-          />
-          <YAxis
-            allowDecimals={false}
-            domain={[0, maxVal + 1]}
-            tickLine={false}
-            axisLine={false}
-            tick={{ fontSize: 10, fill: '#8B003D', fontFamily: 'Epilogue, sans-serif' }}
-            width={24}
-          />
-          <Tooltip
-            formatter={(value: number, name: string) => [value, name === 'reviews' ? 'Reviews received' : 'Replies posted']}
-            contentStyle={{
-              borderColor: '#FFC2DE',
-              borderRadius: '8px',
-              fontSize: '12px',
-              fontFamily: 'Epilogue, sans-serif',
-              backgroundColor: '#FFFFFF',
-              color: '#2D0013',
-            }}
-          />
-          <Legend
-            formatter={(value: string) => value === 'reviews' ? 'Reviews received' : 'Replies posted'}
-            wrapperStyle={{ fontSize: '11px', fontFamily: 'Epilogue, sans-serif', paddingTop: '8px' }}
-            iconType="circle"
-            iconSize={8}
-          />
-          <Line
-            type="monotone"
-            dataKey="reviews"
-            stroke="#8B003D"
-            strokeWidth={2}
-            dot={{ fill: '#8B003D', r: 3, strokeWidth: 0 }}
-            activeDot={{ r: 5 }}
-          />
-          <Line
-            type="monotone"
-            dataKey="replies"
-            stroke="#216F3F"
-            strokeWidth={2}
-            dot={{ fill: '#216F3F', r: 3, strokeWidth: 0 }}
-            activeDot={{ r: 5 }}
-          />
-        </LineChart>
-      </ResponsiveContainer>
-    </div>
+    <Card className="rounded-md border-border bg-bg shadow-[0_1px_3px_rgba(45,0,19,0.06)]">
+      <CardContent className="p-6">
+        <p style={{ fontSize: 'var(--text-base)', fontWeight: 500, color: 'var(--color-text)', marginBottom: '4px' }}>
+          Reviews &amp; Replies
+        </p>
+        <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', marginBottom: '20px' }}>
+          Last 7 days
+        </p>
+        <ResponsiveContainer width="100%" height={180}>
+          <LineChart data={chartData} margin={{ top: 4, right: 8, left: -8, bottom: 32 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#FFC2DE" vertical={false} />
+            <XAxis
+              dataKey="tick"
+              tickLine={false}
+              axisLine={false}
+              interval={0}
+              tick={<TrendAxisTick />}
+            />
+            <YAxis
+              allowDecimals={false}
+              domain={[0, maxVal + 1]}
+              tickLine={false}
+              axisLine={false}
+              tick={{ fontSize: 10, fill: '#8B003D', fontFamily: 'Epilogue, sans-serif' }}
+              width={24}
+            />
+            <Tooltip
+              formatter={(value: number, name: string) => [value, name === 'reviews' ? 'Reviews received' : 'Replies posted']}
+              contentStyle={{
+                borderColor: '#FFC2DE',
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontFamily: 'Epilogue, sans-serif',
+                backgroundColor: '#FFFFFF',
+                color: '#2D0013',
+              }}
+            />
+            <Legend
+              formatter={(value: string) => value === 'reviews' ? 'Reviews received' : 'Replies posted'}
+              wrapperStyle={{ fontSize: '11px', fontFamily: 'Epilogue, sans-serif', paddingTop: '8px' }}
+              iconType="circle"
+              iconSize={8}
+            />
+            <Line
+              type="monotone"
+              dataKey="reviews"
+              stroke="#8B003D"
+              strokeWidth={2}
+              dot={{ fill: '#8B003D', r: 3, strokeWidth: 0 }}
+              activeDot={{ r: 5 }}
+            />
+            <Line
+              type="monotone"
+              dataKey="replies"
+              stroke="#216F3F"
+              strokeWidth={2}
+              dot={{ fill: '#216F3F', r: 3, strokeWidth: 0 }}
+              activeDot={{ r: 5 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -361,34 +359,16 @@ function TrendAxisTick({ x, y, payload }: { x?: number; y?: number; payload?: { 
 
 function EscalationQueue({ reviews }: { reviews: EscalatedReview[] }) {
   return (
-    <div style={{
-      backgroundColor: 'var(--color-bg)',
-      border: '1px solid var(--color-border)',
-      borderRadius: 'var(--radius-md)',
-      boxShadow: '0 1px 3px rgba(45, 0, 19, 0.06)',
-    }}>
-      <div
-        className="flex items-center justify-between px-6 py-4"
-        style={{ borderBottom: '1px solid var(--color-border)' }}
-      >
+    <Card className="rounded-md border-border bg-bg shadow-[0_1px_3px_rgba(45,0,19,0.06)]">
+      <CardHeader className="flex flex-row items-center justify-between px-6 py-4 space-y-0 border-b border-border">
         <div className="flex items-center gap-3">
           <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 500, color: 'var(--color-text)' }}>
             Escalation Queue
           </h2>
           {reviews.length > 0 && (
-            <span style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              lineHeight: 1,
-              fontSize: 'var(--text-xs)',
-              backgroundColor: 'var(--color-escalate-bg)',
-              color: 'var(--color-escalate)',
-              padding: '3px 8px',
-              borderRadius: 'var(--radius-sm)',
-              fontWeight: 500,
-            }}>
+            <Badge className="shadow-none font-medium rounded-sm text-[11px] py-[3px] px-2 leading-none border-transparent bg-escalate-bg text-escalate hover:bg-escalate-bg">
               {reviews.length} need{reviews.length !== 1 ? '' : 's'} attention
-            </span>
+            </Badge>
           )}
         </div>
         {reviews.length > 0 && (
@@ -399,88 +379,82 @@ function EscalationQueue({ reviews }: { reviews: EscalatedReview[] }) {
             View all →
           </a>
         )}
-      </div>
+      </CardHeader>
 
-      {reviews.length === 0 ? (
-        <div className="px-6 py-16 text-center">
-          <p
-            className="font-display italic"
-            style={{ fontSize: 'var(--text-xl)', color: 'var(--color-muted)' }}
-          >
-            All caught up.
-          </p>
-          <p className="mt-2" style={{ fontSize: 'var(--text-sm)', color: 'var(--color-muted)' }}>
-            No reviews need your attention right now.
-          </p>
-        </div>
-      ) : (
-        <div>
-          {reviews.map((review, idx) => {
-            const action = Array.isArray(review.review_actions)
-              ? review.review_actions[0]
-              : review.review_actions
-            const isLast = idx === reviews.length - 1
-            const reasonTag =
-              action?.sentiment_label === 'negative'
-                ? action.risk_score >= 7
-                  ? 'High risk'
-                  : 'Negative sentiment'
-                : action?.sentiment_label === 'positive'
-                ? 'Positive'
-                : 'Neutral'
+      <CardContent className="p-0">
+        {reviews.length === 0 ? (
+          <div className="px-6 py-16 text-center">
+            <p
+              className="font-display italic"
+              style={{ fontSize: 'var(--text-xl)', color: 'var(--color-muted)' }}
+            >
+              All caught up.
+            </p>
+            <p className="mt-2" style={{ fontSize: 'var(--text-sm)', color: 'var(--color-muted)' }}>
+              No reviews need your attention right now.
+            </p>
+          </div>
+        ) : (
+          <div>
+            {reviews.map((review, idx) => {
+              const action = Array.isArray(review.review_actions)
+                ? review.review_actions[0]
+                : review.review_actions
+              const isLast = idx === reviews.length - 1
+              const reasonTag =
+                action?.sentiment_label === 'negative'
+                  ? action.risk_score >= 7
+                    ? 'High risk'
+                    : 'Negative sentiment'
+                  : action?.sentiment_label === 'positive'
+                  ? 'Positive'
+                  : 'Neutral'
 
-            return (
-              <div
-                key={review.id}
-                style={{
-                  borderBottom: isLast ? 'none' : '1px solid var(--color-border)',
-                  borderLeft: '3px solid var(--color-escalate)',
-                  padding: '12px 24px 12px 21px',
-                }}
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <StarRating rating={review.rating} />
-                  <PlatformBadge source={review.source} />
-                  {review.reviewer_name && (
-                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text)', fontWeight: 500 }}>
-                      {review.reviewer_name}
-                    </span>
-                  )}
-                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', marginLeft: 'auto', flexShrink: 0 }}>
-                    {formatDistanceToNow(review.received_at)} ago
-                  </span>
+              return (
+                <div key={review.id}>
+                  <div
+                    style={{
+                      borderLeft: '3px solid var(--color-escalate)',
+                      padding: '12px 24px 12px 21px',
+                    }}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <StarRating rating={review.rating} />
+                      <PlatformBadge source={review.source} />
+                      {review.reviewer_name && (
+                        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text)', fontWeight: 500 }}>
+                          {review.reviewer_name}
+                        </span>
+                      )}
+                      <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)', marginLeft: 'auto', flexShrink: 0 }}>
+                        {formatDistanceToNow(review.received_at)} ago
+                      </span>
+                    </div>
+                    <p
+                      className="line-clamp-1 mb-1"
+                      style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text)' }}
+                    >
+                      {review.body}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Badge className={cn(BADGE_BASE_CLASS, 'bg-escalate-bg text-escalate hover:bg-escalate-bg')}>
+                        escalated
+                      </Badge>
+                      {action && (
+                        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)' }}>
+                          {reasonTag}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {!isLast && <Separator />}
                 </div>
-                <p
-                  className="line-clamp-1 mb-1"
-                  style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text)' }}
-                >
-                  {review.body}
-                </p>
-                <div className="flex items-center gap-2">
-                  <span style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    lineHeight: 1,
-                    fontSize: 'var(--text-xs)',
-                    backgroundColor: 'var(--color-escalate-bg)',
-                    color: 'var(--color-escalate)',
-                    padding: '3px 6px',
-                    borderRadius: 'var(--radius-sm)',
-                  }}>
-                    escalated
-                  </span>
-                  {action && (
-                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)' }}>
-                      {reasonTag}
-                    </span>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
+              )
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 
@@ -659,14 +633,8 @@ function StarRating({ rating }: { rating: number }) {
 function PlatformBadge({ source }: { source: string }) {
   const label = source === 'judgeme' ? 'Judge.me' : source === 'google_business' ? 'Google' : source
   return (
-    <span style={{
-      fontSize: 'var(--text-xs)',
-      backgroundColor: 'var(--color-surface)',
-      color: 'var(--color-muted)',
-      padding: '1px 6px',
-      borderRadius: 'var(--radius-sm)',
-    }}>
+    <Badge className="shadow-none font-normal rounded-sm text-[11px] py-[3px] px-1.5 leading-none border-transparent bg-surface text-muted hover:bg-surface">
       {label}
-    </span>
+    </Badge>
   )
 }

@@ -1,3 +1,10 @@
+import { clsx, type ClassValue } from 'clsx'
+import { twMerge } from 'tailwind-merge'
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+
 export function formatDistanceToNow(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime()
   const mins = Math.floor(diff / 60000)
@@ -7,8 +14,4 @@ export function formatDistanceToNow(dateStr: string): string {
   if (hrs < 24) return `${hrs}h`
   const days = Math.floor(hrs / 24)
   return `${days}d`
-}
-
-export function cn(...classes: (string | false | null | undefined)[]): string {
-  return classes.filter(Boolean).join(' ')
 }
