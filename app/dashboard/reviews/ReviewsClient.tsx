@@ -7,7 +7,6 @@ import { cn, formatDistanceToNow } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 
 const HEARD_FOCUS_CLASS =
@@ -195,11 +194,10 @@ export default function ReviewsClient({ reviews: initialReviews, replyMode }: { 
   }
 
   return (
-    <div className="flex h-full">
+    <div className="flex min-h-full flex-col md:h-full md:flex-row">
       {/* Left panel — review list */}
       <div
-        className="flex flex-col overflow-hidden"
-        style={{ width: '420px', flexShrink: 0, borderRight: '1px solid var(--color-border)' }}
+        className="flex max-h-[55vh] w-full flex-col overflow-hidden border-b border-border md:h-full md:max-h-none md:w-[420px] md:flex-shrink-0 md:border-b-0 md:border-r"
       >
         {/* Header */}
         <div
@@ -221,22 +219,28 @@ export default function ReviewsClient({ reviews: initialReviews, replyMode }: { 
 
           {/* Filter tabs */}
           <div className="mt-3">
-            <Tabs value={filter} onValueChange={(v) => setFilter(v as Filter)}>
-              <TabsList className="bg-transparent gap-1 p-0 h-auto">
-                {FILTERS.map((f) => (
-                  <TabsTrigger
+            <div className="flex gap-1 overflow-x-auto" aria-label="Review filters">
+              {FILTERS.map((f) => {
+                const selected = filter === f
+                return (
+                  <button
                     key={f}
-                    value={f}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => setFilter(f)}
                     className={cn(
-                      'rounded-sm h-7 text-xs font-normal shadow-none data-[state=active]:bg-surface-2 data-[state=active]:text-text data-[state=active]:font-medium data-[state=active]:shadow-none data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted',
+                      'h-7 flex-shrink-0 rounded-sm px-3 text-xs transition-colors',
+                      selected
+                        ? 'bg-surface-2 text-text font-medium'
+                        : 'bg-transparent text-muted font-normal hover:bg-surface',
                       HEARD_FOCUS_CLASS
                     )}
                   >
                     {f}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </Tabs>
+                  </button>
+                )
+              })}
+            </div>
           </div>
         </div>
 
@@ -341,7 +345,7 @@ export default function ReviewsClient({ reviews: initialReviews, replyMode }: { 
       </div>
 
       {/* Right panel */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="min-h-[420px] flex-1 overflow-y-auto p-5 md:p-6">
         {allCaughtUp && !selected ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">

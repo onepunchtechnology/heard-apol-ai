@@ -6,7 +6,6 @@ import { cn, formatDistanceToNow } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 const HEARD_FOCUS_CLASS =
   'focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-dim focus-visible:outline-offset-2'
@@ -243,22 +242,28 @@ export default function AgentsClient({
           {' · '}{totalAutoPosted} auto-posted
           {' · '}{totalEscalated} escalated
         </p>
-        <Tabs value={filter} onValueChange={(v) => setFilter(v as FilterTab)}>
-          <TabsList className="bg-transparent gap-2 p-0 h-auto">
-            {FILTERS.map((f) => (
-              <TabsTrigger
+        <div className="flex gap-2 overflow-x-auto" aria-label="Agent run filters">
+          {FILTERS.map((f) => {
+            const selected = filter === f
+            return (
+              <button
                 key={f}
-                value={f}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => setFilter(f)}
                 className={cn(
-                  'rounded-sm h-8 text-xs font-normal shadow-none data-[state=active]:bg-accent data-[state=active]:text-text data-[state=active]:font-medium data-[state=active]:shadow-none data-[state=inactive]:bg-surface data-[state=inactive]:text-muted',
+                  'h-8 flex-shrink-0 rounded-sm px-3 text-xs transition-colors',
+                  selected
+                    ? 'bg-accent text-text font-medium'
+                    : 'bg-surface text-muted font-normal hover:bg-surface-2',
                   HEARD_FOCUS_CLASS
                 )}
               >
                 {f}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       {/* Runs list */}
