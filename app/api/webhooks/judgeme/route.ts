@@ -1,28 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
-import crypto from 'crypto'
 import { createAdminClient } from '@/lib/supabase/admin'
-import type { Database } from '@/lib/types/database'
-
-type StoreRow = Database['public']['Tables']['stores']['Row']
 
 export async function POST(request: NextRequest) {
-  const rawBody = await request.text()
-  const signature = request.headers.get('JUDGEME-HMAC-SHA256')
-
-  if (!signature) {
-    return NextResponse.json({ error: 'Missing signature' }, { status: 401 })
-  }
-
-  const supabase = createAdminClient()
-
+  // Judge.me does not sign webhooks — their API has no secret/HMAC mechanism.
+  // Store lookup by shopify_domain is the authenticity check.
   const shopDomain = request.headers.get('x-judgeme-shop-domain')
   if (!shopDomain) {
     return NextResponse.json({ error: 'Missing shop domain' }, { status: 400 })
   }
 
+  const supabase = createAdminClient()
+
   const { data: storeData } = await supabase
     .from('stores')
-    .select('id, judgeme_webhook_secret')
+    .select('id')
     .eq('shopify_domain', shopDomain)
     .maybeSingle()
 
@@ -30,28 +21,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Store not found' }, { status: 404 })
   }
 
-  const store = storeData as Pick<StoreRow, 'id' | 'judgeme_webhook_secret'>
-
-  if (!store.judgeme_webhook_secret) {
-    return NextResponse.json({ error: 'Webhook not configured' }, { status: 404 })
-  }
-
-  const expectedSig = crypto
-    .createHmac('sha256', store.judgeme_webhook_secret)
-    .update(rawBody)
-    .digest('base64')
-
-  const sigBuf = Buffer.from(signature, 'base64')
-  const expBuf = Buffer.from(expectedSig, 'base64')
-  const sigValid = sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf)
-  if (!sigValid) {
-    return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
-  }
+  const store = storeData as { id: string }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let payload: any
   try {
-    payload = JSON.parse(rawBody)
+    payload = await request.json()
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }

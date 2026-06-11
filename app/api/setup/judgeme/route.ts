@@ -59,10 +59,12 @@ export async function POST(request: NextRequest) {
     // Non-fatal — merchant can still use manual sweep; webhook can be registered later
   }
 
-  // Import existing replied reviews for brand voice grounding — failure never blocks wizard
+  // Import existing reviews: extract replied ones for brand voice grounding, backfill unreplied
+  // ones into reviews table so the agent can draft replies for them — failure never blocks wizard
   let imported_replies: string[] = []
   let review_count = 0
   let reply_count = 0
+  let backfilled_count = 0
   try {
     const importRes = await fetch(
       `https://api.judge.me/api/v1/reviews?shop_domain=${store.shopify_domain}&per_page=100`,
@@ -72,19 +74,44 @@ export async function POST(request: NextRequest) {
       const importData = await importRes.json() as { reviews?: Record<string, unknown>[]; total?: number }
       const reviews = importData.reviews ?? []
       review_count = importData.total ?? reviews.length
+      const pendingRows: Record<string, unknown>[] = []
       for (const review of reviews) {
         const replyText = extractReplyText(review)
         if (replyText) {
           imported_replies.push(replyText)
           reply_count++
+        } else if (review.id) {
+          // List API returns product_title / product_handle at top level (not nested under product)
+          const reviewer = review.reviewer as Record<string, unknown> | undefined
+          pendingRows.push({
+            store_id:       store.id,
+            external_id:    String(review.id),
+            source:         'judgeme',
+            reviewer_name:  (reviewer?.name as string | undefined) ?? 'Anonymous',
+            rating:         (review.rating as number | undefined) ?? 3,
+            title:          (review.title as string | null | undefined) ?? null,
+            body:           (review.body as string | undefined) ?? '',
+            product_title:  (review.product_title as string | null | undefined) ?? null,
+            product_handle: (review.product_handle as string | null | undefined) ?? null,
+            order_id:       reviewer?.external_id != null ? String(reviewer.external_id) : null,
+            status:         'pending',
+            received_at:    (review.created_at as string | undefined) ?? new Date().toISOString(),
+            raw_payload:    review,
+          })
         }
       }
       // Cap at 20 replies — enough for brand voice grounding, avoid bloating sample_replies
       imported_replies = imported_replies.slice(0, 20)
+      if (pendingRows.length > 0) {
+        const { error: backfillErr } = await admin
+          .from('reviews')
+          .upsert(pendingRows, { onConflict: 'external_id,store_id', ignoreDuplicates: true })
+        if (!backfillErr) backfilled_count = pendingRows.length
+      }
     }
   } catch {
     // Import failure is non-fatal — return empty arrays below
   }
 
-  return NextResponse.json({ ok: true, imported_replies, review_count, reply_count, webhook_registered })
+  return NextResponse.json({ ok: true, imported_replies, review_count, reply_count, webhook_registered, backfilled_count })
 }
