@@ -48,22 +48,26 @@ class Orchestrator:
         self._classifier = ClassifierAgent()
         self._drafter = DrafterAgent()
 
-    async def sweep(self) -> None:
+    async def sweep(self, store_id: str | None = None) -> None:
         # Reset reviews orphaned in 'processing' by a previous crashed/timed-out task.
         # Any review still processing after 30 min is de facto stuck — no live task owns it.
         stale_cutoff = (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat()
-        rescued = self._db.table("reviews").update({"status": "pending", "updated_at": _now()}).eq("status", "processing").lt("updated_at", stale_cutoff).execute()
+        stale_q = self._db.table("reviews").update({"status": "pending", "updated_at": _now()}).eq("status", "processing").lt("updated_at", stale_cutoff)
+        if store_id:
+            stale_q = stale_q.eq("store_id", store_id)
+        rescued = stale_q.execute()
         if rescued.data:
             print(f"[sweep] rescued {len(rescued.data)} stale processing review(s)")
 
-        result = (
+        q = (
             self._db.table("reviews")
             .select("id")
             .eq("status", "pending")
-            .order("received_at", desc=False)
-            .limit(50)
-            .execute()
         )
+        if store_id:
+            q = q.eq("store_id", store_id)
+            print(f"[sweep] scoped to store {store_id}")
+        result = q.order("received_at", desc=False).limit(50).execute()
         ids = [row["id"] for row in (result.data or [])]
         if not ids:
             print("[sweep] no pending reviews")

@@ -52,14 +52,14 @@ def _setup_cloud_trace():
     return None
 
 
-async def _run(mode: str, review_id: str | None) -> None:
+async def _run(mode: str, review_id: str | None, store_id: str | None = None) -> None:
     # Import here so env validation runs first and import errors surface cleanly
     from orchestrator import Orchestrator
 
     orch = Orchestrator()
 
     if mode == "sweep":
-        await orch.sweep()
+        await orch.sweep(store_id=store_id)
     elif mode == "single":
         if not review_id:
             print("[fatal] --review_id required for single mode", file=sys.stderr)
@@ -78,11 +78,12 @@ def main() -> None:
 
     mode = args.mode or os.environ.get("MODE", "sweep")
     review_id = args.review_id or os.environ.get("REVIEW_ID")
+    store_id = os.environ.get("STORE_ID")
 
     _validate_env()
     trace_provider = _setup_cloud_trace()
     try:
-        asyncio.run(_run(mode, review_id))
+        asyncio.run(_run(mode, review_id, store_id))
     finally:
         if trace_provider is not None:
             trace_provider.shutdown()
