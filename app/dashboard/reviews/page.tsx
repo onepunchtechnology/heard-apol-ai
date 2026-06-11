@@ -18,7 +18,7 @@ export default async function ReviewsPage() {
       `)
       .in('status', ['pending', 'processing', 'needs_review', 'reply_pending_manual', 'auto_posted', 'approved', 'imported'])
       .order('received_at', { ascending: false })
-      .limit(50),
+      .limit(200),
     supabase
       .from('stores')
       .select('reply_mode')

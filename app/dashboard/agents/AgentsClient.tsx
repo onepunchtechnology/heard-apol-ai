@@ -57,15 +57,16 @@ function getAction(review: Review): ReviewAction | undefined {
 type FilterTab = 'All' | 'Auto-posted' | 'Escalated' | 'Blocked'
 const FILTERS: FilterTab[] = ['All', 'Auto-posted', 'Escalated', 'Blocked']
 
+function isBlocked(review: Review): boolean {
+  const flags = (getAction(review)?.agent_trace as { steps?: Array<{ step: string; passed?: boolean }> })?.steps ?? []
+  return flags.some((s) => s.step === 'guardrails' && s.passed === false)
+}
+
 function matchesFilter(review: Review, filter: FilterTab): boolean {
   if (filter === 'All') return true
-  const action = getAction(review)
   if (filter === 'Auto-posted') return review.status === 'auto_posted'
-  if (filter === 'Escalated') return (review.status === 'needs_review' && action?.decision !== 'auto_post') || action?.decision === 'escalate'
-  if (filter === 'Blocked') {
-    const flags = (action?.agent_trace as { steps?: Array<{ step: string; passed?: boolean; fired_flags?: string[] }> })?.steps ?? []
-    return flags.some((s) => s.step === 'guardrails' && s.passed === false)
-  }
+  if (filter === 'Escalated') return review.status === 'needs_review' || review.status === 'reply_pending_manual'
+  if (filter === 'Blocked') return isBlocked(review)
   return true
 }
 
@@ -213,8 +214,15 @@ export default function AgentsClient({
   const today = new Date()
   const todayStr = today.toDateString()
   const runsToday = runs.filter((r) => new Date(r.started_at).toDateString() === todayStr).length
-  const totalAutoPosted = runs.reduce((s, r) => s + (r.auto_posted ?? 0), 0)
-  const totalEscalated = runs.reduce((s, r) => s + (r.escalated ?? 0), 0)
+  const totalAutoPosted = reviews.filter((r) => r.status === 'auto_posted').length
+  const totalEscalated = reviews.filter((r) => r.status === 'needs_review' || r.status === 'reply_pending_manual').length
+
+  const filterCounts: Record<FilterTab, number> = {
+    All: reviews.length,
+    'Auto-posted': reviews.filter((r) => r.status === 'auto_posted').length,
+    Escalated: totalEscalated,
+    Blocked: reviews.filter((r) => isBlocked(r)).length,
+  }
 
   const filtered = reviews.filter((r) => matchesFilter(r, filter))
 
@@ -245,6 +253,7 @@ export default function AgentsClient({
         <div className="flex gap-2 overflow-x-auto" aria-label="Agent run filters">
           {FILTERS.map((f) => {
             const selected = filter === f
+            const count = filterCounts[f]
             return (
               <button
                 key={f}
@@ -259,7 +268,7 @@ export default function AgentsClient({
                   HEARD_FOCUS_CLASS
                 )}
               >
-                {f}
+                {f}{count > 0 ? ` (${count})` : ''}
               </button>
             )
           })}
@@ -287,17 +296,14 @@ export default function AgentsClient({
             const isAutoPosted = review.status === 'auto_posted'
             const isAwaitingApproval = action?.decision === 'auto_post' && review.status !== 'auto_posted' && review.status !== 'approved'
             const isEscalated = review.status === 'needs_review' || action?.decision === 'escalate'
-            const isBlocked = (() => {
-              const tr = action?.agent_trace as { steps?: Array<{ step: string; passed?: boolean }> } | null
-              return tr?.steps?.some((s) => s.step === 'guardrails' && s.passed === false) ?? false
-            })()
+            const isReviewBlocked = isBlocked(review)
             const isProcessing = review.status === 'processing'
 
             const statusColor = isProcessing
               ? 'var(--color-warning)'
               : isAutoPosted
               ? 'var(--color-success)'
-              : isBlocked
+              : isReviewBlocked
               ? 'var(--color-warning)'
               : isAwaitingApproval
               ? 'var(--color-muted)'
@@ -309,7 +315,7 @@ export default function AgentsClient({
               ? 'processing'
               : isAutoPosted
               ? 'auto-posted'
-              : isBlocked
+              : isReviewBlocked
               ? 'blocked'
               : isAwaitingApproval
               ? 'awaiting approval'
@@ -393,9 +399,9 @@ export default function AgentsClient({
                       'flex-shrink-0',
                       isProcessing && 'bg-warning-bg text-warning hover:bg-warning-bg pulse',
                       isAutoPosted && !isProcessing && 'bg-success-bg text-success hover:bg-success-bg',
-                      isBlocked && !isProcessing && !isAutoPosted && 'bg-warning-bg text-warning hover:bg-warning-bg',
-                      isEscalated && !isProcessing && !isAutoPosted && !isBlocked && 'bg-escalate-bg text-escalate hover:bg-escalate-bg',
-                      !isProcessing && !isAutoPosted && !isBlocked && !isEscalated && 'bg-surface text-muted hover:bg-surface'
+                      isReviewBlocked && !isProcessing && !isAutoPosted && 'bg-warning-bg text-warning hover:bg-warning-bg',
+                      isEscalated && !isProcessing && !isAutoPosted && !isReviewBlocked && 'bg-escalate-bg text-escalate hover:bg-escalate-bg',
+                      !isProcessing && !isAutoPosted && !isReviewBlocked && !isEscalated && 'bg-surface text-muted hover:bg-surface'
                     )}
                   >
                     {outcomeLabel}

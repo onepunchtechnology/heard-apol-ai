@@ -59,6 +59,7 @@ interface ActivityClientProps {
   reviewsTrend: number[]
   repliesTrend: number[]
   recentEscalated: EscalatedReview[]
+  totalEscalatedCount: number
   isDemoAccount?: boolean
 }
 
@@ -100,6 +101,7 @@ export default function ActivityClient({
   reviewsTrend: initialReviewsTrend,
   repliesTrend: initialRepliesTrend,
   recentEscalated: initialEscalated,
+  totalEscalatedCount: initialTotalEscalatedCount,
   isDemoAccount,
 }: ActivityClientProps) {
   const [lastRunAt, setLastRunAt] = useState<string | null>(initialLastRunAt)
@@ -108,6 +110,7 @@ export default function ActivityClient({
   const [reviewsTrend, setReviewsTrend] = useState<number[]>(initialReviewsTrend)
   const [repliesTrend, setRepliesTrend] = useState<number[]>(initialRepliesTrend)
   const [recentEscalated, setRecentEscalated] = useState<EscalatedReview[]>(initialEscalated)
+  const [totalEscalatedCount, setTotalEscalatedCount] = useState<number>(initialTotalEscalatedCount)
 
   useEffect(() => {
     const supabase = createClient()
@@ -119,6 +122,7 @@ export default function ActivityClient({
         { data: runs },
         { data: latestStatuses },
         { data: escalated },
+        { count: freshTotalEscalated },
         { data: newRepliesRows },
         { data: newReviewsRows },
         { data: sentimentRows },
@@ -142,6 +146,10 @@ export default function ActivityClient({
           .limit(5),
         supabase
           .from('reviews')
+          .select('id', { count: 'exact', head: true })
+          .in('status', ['needs_review', 'reply_pending_manual']),
+        supabase
+          .from('reviews')
           .select('received_at')
           .eq('status', 'auto_posted')
           .gte('received_at', sevenDaysAgo),
@@ -157,6 +165,7 @@ export default function ActivityClient({
 
       setLastRunAt((runs?.[0] as { completed_at: string | null } | undefined)?.completed_at ?? null)
       setStatusCounts(computeStatusCounts(latestStatuses ?? []))
+      setTotalEscalatedCount(freshTotalEscalated ?? 0)
       setSentimentCounts(
         (sentimentRows ?? []).reduce(
           (acc, r) => {
@@ -216,7 +225,7 @@ export default function ActivityClient({
       </div>
 
       {/* Row 4: Escalation queue */}
-      <EscalationQueue reviews={recentEscalated} />
+      <EscalationQueue reviews={recentEscalated} totalCount={totalEscalatedCount} />
     </div>
   )
 }
@@ -483,7 +492,7 @@ function TrendAxisTick({ x, y, payload }: { x?: number; y?: number; payload?: { 
   )
 }
 
-function EscalationQueue({ reviews: initialReviews }: { reviews: EscalatedReview[] }) {
+function EscalationQueue({ reviews: initialReviews, totalCount }: { reviews: EscalatedReview[]; totalCount: number }) {
   const [reviews, setReviews] = useState(initialReviews)
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
@@ -501,13 +510,13 @@ function EscalationQueue({ reviews: initialReviews }: { reviews: EscalatedReview
           <h2 style={{ fontSize: 'var(--text-lg)', fontWeight: 500, color: 'var(--color-text)' }}>
             Escalation Queue
           </h2>
-          {reviews.length > 0 && (
+          {totalCount > 0 && (
             <Badge className="shadow-none font-medium rounded-sm text-[11px] py-[3px] px-2 leading-none border-transparent bg-escalate-bg text-escalate hover:bg-escalate-bg">
-              {reviews.length} need{reviews.length !== 1 ? '' : 's'} attention
+              {totalCount} need{totalCount !== 1 ? '' : 's'} attention
             </Badge>
           )}
         </div>
-        {reviews.length > 0 && (
+        {totalCount > 0 && (
           <a
             href="/dashboard/reviews"
             style={{ fontSize: 'var(--text-sm)', color: 'var(--color-muted)', textDecoration: 'none' }}

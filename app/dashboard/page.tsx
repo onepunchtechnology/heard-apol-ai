@@ -26,6 +26,7 @@ export default async function ActivityPage() {
     { data: allStatuses },
     { count: storeCount },
     { data: recentEscalated },
+    { count: totalEscalatedCount },
     { data: repliesTrendRows },
     { data: reviewsTrendRows },
     { data: sentimentRows },
@@ -51,6 +52,10 @@ export default async function ActivityPage() {
       .in('status', ['needs_review', 'reply_pending_manual'])
       .order('received_at', { ascending: false })
       .limit(5),
+    supabase
+      .from('reviews')
+      .select('id', { count: 'exact', head: true })
+      .in('status', ['needs_review', 'reply_pending_manual']),
     supabase
       .from('reviews')
       .select('received_at')
@@ -101,6 +106,7 @@ export default async function ActivityPage() {
       reviewsTrend={bucketByDay(reviewsTrendRows ?? [])}
       repliesTrend={bucketByDay(repliesTrendRows ?? [])}
       recentEscalated={recentEscalated ?? []}
+      totalEscalatedCount={totalEscalatedCount ?? 0}
       isDemoAccount={user?.email === 'google-hackathon-demo-9c25d0@apol.ai'}
     />
   )

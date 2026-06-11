@@ -153,6 +153,13 @@ export default function ReviewsClient({ reviews: initialReviews, replyMode }: { 
     locallyApprovedIds.has(r.id) ? { ...r, status: 'approved' as const } : r,
   )
 
+  const filterCounts: Record<Filter, number> = {
+    All: effectiveReviews.length,
+    Escalated: effectiveReviews.filter((r) => r.status === 'needs_review' || r.status === 'reply_pending_manual').length,
+    'Auto-replied': effectiveReviews.filter((r) => r.status === 'auto_posted' || r.status === 'approved').length,
+    Imported: effectiveReviews.filter((r) => r.status === 'imported').length,
+  }
+
   const filtered = filterReviews(effectiveReviews, filter)
   const selected = filtered.find((r) => r.id === selectedId) ?? null
 
@@ -232,6 +239,7 @@ export default function ReviewsClient({ reviews: initialReviews, replyMode }: { 
             <div className="flex gap-1 overflow-x-auto" aria-label="Review filters">
               {FILTERS.map((f) => {
                 const selected = filter === f
+                const count = filterCounts[f]
                 return (
                   <button
                     key={f}
@@ -246,7 +254,7 @@ export default function ReviewsClient({ reviews: initialReviews, replyMode }: { 
                       HEARD_FOCUS_CLASS
                     )}
                   >
-                    {f}
+                    {f}{count > 0 ? ` (${count})` : ''}
                   </button>
                 )
               })}
