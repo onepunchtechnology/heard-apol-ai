@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import httpx
 from google import genai as _genai
@@ -49,6 +49,13 @@ class Orchestrator:
         self._drafter = DrafterAgent()
 
     async def sweep(self) -> None:
+        # Reset reviews orphaned in 'processing' by a previous crashed/timed-out task.
+        # Any review still processing after 30 min is de facto stuck — no live task owns it.
+        stale_cutoff = (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat()
+        rescued = self._db.table("reviews").update({"status": "pending", "updated_at": _now()}).eq("status", "processing").lt("updated_at", stale_cutoff).execute()
+        if rescued.data:
+            print(f"[sweep] rescued {len(rescued.data)} stale processing review(s)")
+
         result = (
             self._db.table("reviews")
             .select("id")
