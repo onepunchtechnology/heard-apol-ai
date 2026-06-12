@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/root-redirect.test.mjs && node scripts/auth-confirm-regression.test.mjs && node scripts/webhook-security.test.mjs && node scripts/approve-route.test.mjs && node scripts/settings-routes.test.mjs && node scripts/mark-posted-reject-routes.test.mjs && node scripts/agent-trigger-route.test.mjs && node scripts/setup-judgeme.test.mjs && node scripts/imported-status-regression.test.mjs && (cd agent && .venv/bin/python -m pytest tests/ -q)"
+    "test": "node scripts/root-redirect.test.mjs && node scripts/auth-confirm-regression.test.mjs && node scripts/webhook-security.test.mjs && node scripts/approve-route.test.mjs && node scripts/settings-routes.test.mjs && node scripts/mark-posted-reject-routes.test.mjs && node scripts/agent-trigger-route.test.mjs && node scripts/setup-judgeme.test.mjs && node scripts/imported-status-regression.test.mjs && node scripts/agent-status-indicator.test.mjs && (cd agent && .venv/bin/python -m pytest tests/ -q)"
   },
   "dependencies": {
     "@radix-ui/react-separator": "^1.1.9",
