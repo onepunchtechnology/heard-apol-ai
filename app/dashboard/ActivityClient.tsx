@@ -53,7 +53,6 @@ interface SentimentCounts {
 
 interface ActivityClientProps {
   lastRunAt: string | null
-  storeCount: number
   statusCounts: StatusCounts
   sentimentCounts: SentimentCounts
   reviewsTrend: number[]
@@ -95,7 +94,6 @@ function computeStatusCounts(rows: { status: string }[]): StatusCounts {
 
 export default function ActivityClient({
   lastRunAt: initialLastRunAt,
-  storeCount,
   statusCounts: initialStatusCounts,
   sentimentCounts: initialSentimentCounts,
   reviewsTrend: initialReviewsTrend,
@@ -194,24 +192,14 @@ export default function ActivityClient({
 
   return (
     <div className="p-8 w-full max-w-5xl">
-      {/* Status bar */}
-      <div
-        className="mb-5 flex items-center gap-2"
-        style={{ fontSize: 'var(--text-xs)', color: 'var(--color-muted)' }}
-      >
-        <span
-          className="pulse inline-block flex-shrink-0 rounded-full"
-          style={{ width: '8px', height: '8px', backgroundColor: 'var(--color-accent)' }}
-        />
-        watching {storeCount} store{storeCount !== 1 ? 's' : ''}
-        {lastRunAt && (
-          <> · last reply {formatDistanceToNow(lastRunAt)} ago</>
-        )}
-        {' · '}always on
-      </div>
-
       {/* Row 1: Hackathon panel */}
       {isDemoAccount && <HackathonPanel />}
+
+      {lastRunAt && (
+        <p className="mb-5 text-xs text-muted">
+          last reply {formatDistanceToNow(lastRunAt)} ago
+        </p>
+      )}
 
       {/* Row 2: Trend chart (full width) */}
       <div className="mb-6">

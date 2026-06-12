@@ -18,11 +18,11 @@ export default function NavItem({ href, label, exact }: NavItemProps) {
     <Link
       href={href}
       className={cn(
-        'flex h-11 flex-shrink-0 items-center border-b-[3px] px-5 text-base text-text transition-colors duration-short ease-out md:border-b-0 md:border-l-[3px] md:px-6',
+        'flex h-10 flex-shrink-0 items-center rounded-lg px-3 text-sm transition-colors duration-short ease-out',
         'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-text',
         isActive
-          ? 'border-text bg-accent-dim font-medium'
-          : 'border-transparent bg-transparent font-normal'
+          ? 'bg-surface-2 font-medium text-text'
+          : 'font-normal text-muted hover:bg-surface'
       )}
     >
       {label}

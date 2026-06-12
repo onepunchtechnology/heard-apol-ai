@@ -4,34 +4,33 @@
  */
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import crypto from 'node:crypto'
 
 const webhook = readFileSync('app/api/webhooks/judgeme/route.ts', 'utf8')
 
-// ── Security: HMAC verification ──────────────────────────────────────────────
+// ── Security: Judge.me authenticity model ────────────────────────────────────
 
 assert.match(
   webhook,
-  /timingSafeEqual/,
-  'webhook HMAC comparison must use timingSafeEqual to prevent timing attacks'
+  /Judge\.me does not sign webhooks/,
+  'webhook must document that Judge.me does not provide HMAC signatures'
 )
 
 assert.doesNotMatch(
   webhook,
-  /signature\s*===\s*expected|expectedSig\s*===\s*signature/,
-  'webhook must not compare signatures with === (timing-unsafe)'
+  /timingSafeEqual|createHmac|Missing signature/,
+  'webhook must not assert nonexistent Judge.me HMAC verification'
 )
 
 assert.match(
   webhook,
-  /createHmac\('sha256'/,
-  'webhook must use HMAC-SHA256 to verify the Judge.me signature'
+  /request\.headers\.get\('x-judgeme-shop-domain'\)/,
+  'webhook must read Judge.me shop domain from headers'
 )
 
 assert.match(
   webhook,
-  /\.digest\('base64'\)/,
-  'HMAC digest must be base64 to match the JUDGEME-HMAC-SHA256 header format'
+  /\.eq\('shopify_domain', shopDomain\)/,
+  'webhook authenticity check must match the shop domain to a configured store'
 )
 
 // ── Ordering: persist before triggering agent ────────────────────────────────
@@ -63,12 +62,6 @@ assert.match(
 )
 
 // ── Input validation ──────────────────────────────────────────────────────────
-
-assert.match(
-  webhook,
-  /Missing signature/,
-  'webhook must reject requests with no HMAC signature header'
-)
 
 assert.match(
   webhook,

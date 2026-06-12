@@ -1,6 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
+type JudgeMeWebhookPayload = {
+  review?: {
+    id?: string | number
+    reviewer?: {
+      name?: string | null
+      external_id?: string | number | null
+    } | null
+    rating?: number | null
+    title?: string | null
+    body?: string | null
+    product?: {
+      name?: string | null
+      handle?: string | null
+    } | null
+    created_at?: string | null
+  }
+}
+
 export async function POST(request: NextRequest) {
   // Judge.me does not sign webhooks — their API has no secret/HMAC mechanism.
   // Store lookup by shopify_domain is the authenticity check.
@@ -23,10 +41,9 @@ export async function POST(request: NextRequest) {
 
   const store = storeData as { id: string }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let payload: any
+  let payload: JudgeMeWebhookPayload
   try {
-    payload = await request.json()
+    payload = await request.json() as JudgeMeWebhookPayload
   } catch {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
