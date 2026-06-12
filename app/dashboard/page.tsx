@@ -24,7 +24,6 @@ export default async function ActivityPage() {
   const [
     { data: latestRun },
     { data: allStatuses },
-    { count: storeCount },
     { data: recentEscalated },
     { count: totalEscalatedCount },
     { data: repliesTrendRows },
@@ -40,9 +39,6 @@ export default async function ActivityPage() {
     supabase
       .from('reviews')
       .select('status'),
-    supabase
-      .from('stores')
-      .select('id', { count: 'exact', head: true }),
     supabase
       .from('reviews')
       .select(`
@@ -100,7 +96,6 @@ export default async function ActivityPage() {
   return (
     <ActivityClient
       lastRunAt={(latestRun as { completed_at: string | null } | null)?.completed_at ?? null}
-      storeCount={storeCount ?? 1}
       statusCounts={statusCounts}
       sentimentCounts={sentimentCounts}
       reviewsTrend={bucketByDay(reviewsTrendRows ?? [])}
