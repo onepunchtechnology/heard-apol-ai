@@ -87,3 +87,36 @@ body {
     opacity: 1;
   }
 }
+
+@keyframes agent-blink {
+  0%, 44%  { opacity: 1; }
+  50%, 94% { opacity: 0.15; }
+  100%     { opacity: 1; }
+}
+
+@keyframes agent-pulse-ring {
+  0%   { transform: scale(1); opacity: 0.7; }
+  60%  { transform: scale(2.4); opacity: 0; }
+  100% { transform: scale(1); opacity: 0; }
+}
+
+.agent-blink {
+  animation: agent-blink 1.2s ease-in-out infinite;
+}
+
+.agent-pulse-ring::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: #16A34A;
+  animation: agent-pulse-ring 1.5s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-blink,
+  .agent-pulse-ring::after {
+    animation: none;
+    opacity: 1;
+  }
+}
