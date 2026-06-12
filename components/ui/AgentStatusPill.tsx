@@ -1,6 +1,7 @@
 'use client'
 
 import { useAgentStatus } from './AgentStatusProvider'
+import type { AgentStatus } from '@/lib/agent-status'
 import { cn } from '@/lib/utils'
 
 interface AgentStatusPillProps {
@@ -8,7 +9,7 @@ interface AgentStatusPillProps {
   className?: string
 }
 
-const BORDER = {
+const BORDER: Record<AgentStatus, string> = {
   listening: 'border-[var(--color-agent-border-rest)]',
   reading: 'border-[var(--color-agent-border-rest)]',
   drafting: 'border-[var(--color-agent-border-active)]',
