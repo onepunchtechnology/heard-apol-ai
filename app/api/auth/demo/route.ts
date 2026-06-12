@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   const demoEmail = process.env.DEMO_ACCOUNT_EMAIL
   if (!demoEmail) return NextResponse.redirect(new URL('/login', request.url))
