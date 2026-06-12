@@ -2,8 +2,7 @@
 
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-
-export type AgentStatus = 'listening' | 'reading' | 'drafting'
+import { deriveStatus, type AgentStatus } from '@/lib/agent-status'
 
 const AgentStatusContext = createContext<AgentStatus>('listening')
 
@@ -11,14 +10,8 @@ export function useAgentStatus(): AgentStatus {
   return useContext(AgentStatusContext)
 }
 
-function deriveStatus(processingCount: number, sweepHasDraft: boolean): AgentStatus {
-  if (processingCount === 0) return 'listening'
-  if (sweepHasDraft) return 'drafting'
-  return 'reading'
-}
-
 export default function AgentStatusProvider({ children }: { children: React.ReactNode }) {
-  const [processingCount, setProcessingCount] = useState(0)
+  const [activeReviewCount, setActiveReviewCount] = useState(0)
   const [sweepHasDraft, setSweepHasDraft] = useState(false)
   const mountedRef = useRef(false)
 
@@ -26,32 +19,34 @@ export default function AgentStatusProvider({ children }: { children: React.Reac
     mountedRef.current = true
     const supabase = createClient()
 
-    async function syncProcessingCount() {
+    async function syncActiveReviewCount() {
       const { count } = await supabase
         .from('reviews')
         .select('id', { count: 'exact', head: true })
-        .eq('status', 'processing')
+        .in('status', ['pending', 'processing'])
       const newCount = count ?? 0
       if (!mountedRef.current) return
       if (newCount === 0) setSweepHasDraft(false)
-      setProcessingCount(newCount)
+      setActiveReviewCount(newCount)
     }
 
-    syncProcessingCount()
+    syncActiveReviewCount()
 
     const channel = supabase
       .channel('agent-status')
       .on(
         'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'reviews' },
-        syncProcessingCount
+        { event: '*', schema: 'public', table: 'reviews' },
+        syncActiveReviewCount
       )
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'review_actions' },
         () => { if (mountedRef.current) setSweepHasDraft(true) }
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') syncActiveReviewCount()
+      })
 
     return () => {
       mountedRef.current = false
@@ -59,7 +54,7 @@ export default function AgentStatusProvider({ children }: { children: React.Reac
     }
   }, [])
 
-  const status = deriveStatus(processingCount, sweepHasDraft)
+  const status = deriveStatus(activeReviewCount, sweepHasDraft)
 
   return (
     <AgentStatusContext.Provider value={status}>

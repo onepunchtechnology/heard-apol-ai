@@ -15,6 +15,10 @@
   --color-accent-dim:   #FF479D;
   --color-success:      #216F3F;
   --color-success-bg:   #D0F4DE;
+  --color-agent-dot:    #16A34A;
+  --color-agent-border-rest:   #4ADE80;
+  --color-agent-border-active: #16A34A;
+  --color-agent-text:   #15803D;
   --color-escalate:     #8C4A35;
   --color-escalate-bg:  #FCEAE4;
   --color-warning:      #6B5904;
@@ -109,7 +113,7 @@ body {
   position: absolute;
   inset: -3px;
   border-radius: 50%;
-  background: #16A34A;
+  background: var(--color-agent-dot);
   animation: agent-pulse-ring 1.5s ease-out infinite;
 }
 
