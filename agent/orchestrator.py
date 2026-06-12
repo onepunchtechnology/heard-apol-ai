@@ -1,3 +1,4 @@
+import asyncio
 import os
 from datetime import datetime, timedelta, timezone
 
@@ -16,6 +17,24 @@ SUPABASE_KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 
 AUTO_POST_MAX_RISK = 3
 JUDGEME_API_BASE = "https://api.judge.me/api/v1"
+
+
+def _is_quota_error(exc: Exception) -> bool:
+    s = str(exc)
+    return "429" in s or "RESOURCE_EXHAUSTED" in s
+
+
+async def _retry(fn, retries: int = 2, delay: float = 5.0):
+    """Retry an async callable on quota errors with linear backoff."""
+    for attempt in range(retries + 1):
+        try:
+            return await fn()
+        except Exception as exc:
+            if _is_quota_error(exc) and attempt < retries:
+                print(f"[retry] quota error, sleeping {delay}s (attempt {attempt + 1}/{retries})")
+                await asyncio.sleep(delay)
+            else:
+                raise
 
 
 def should_auto_post(risk_score: int, guardrails_passed: bool) -> bool:
@@ -114,17 +133,22 @@ class Orchestrator:
 
         # --- 4. Classify ---
         try:
-            classification = await self._classifier.classify(
+            classification = await _retry(lambda: self._classifier.classify(
                 reviewer_name=row.get("reviewer_name", ""),
                 rating=row.get("rating", 3),
                 body=row.get("body", ""),
                 source=row.get("source", ""),
-            )
+            ))
             trace.append(_step("classify", "complete", result=classification))
         except Exception as exc:
             trace.append(_step("classify", "failed", error=str(exc)))
-            self._save_action(review_id, 9, "neutral", str(exc), None, 0, None, [], {"steps": trace})
-            self._set_status(review_id, "needs_review")
+            attempts = int(row.get("process_attempts") or 1)
+            if _is_quota_error(exc) and attempts < 3:
+                print(f"[{review_id}] quota error on classify, recycling to pending (attempt {attempts})")
+                self._set_status(review_id, "pending")
+            else:
+                self._save_action(review_id, 9, "neutral", str(exc), None, 0, None, [], {"steps": trace})
+                self._set_status(review_id, "needs_review")
             return
 
         risk_score: int = int(classification.get("risk_score", 5))
@@ -190,18 +214,23 @@ class Orchestrator:
 
         # --- 6. Draft — DrafterAgent calls Shopify MCP for order context when needed ---
         try:
-            draft_result = await self._drafter.draft(
+            draft_result = await _retry(lambda: self._drafter.draft(
                 review=row,
                 classification=classification,
                 brand_voice=bv,
                 shop_domain=store.get("shopify_domain"),
                 access_token=store.get("platform_access_token"),
-            )
+            ))
             trace.append(_step("draft", "complete", confidence=draft_result.get("confidence")))
         except Exception as exc:
             trace.append(_step("draft", "failed", error=str(exc)))
-            self._save_action(review_id, risk_score, sentiment, reasoning, None, 0, None, [], {"steps": trace})
-            self._set_status(review_id, "needs_review")
+            attempts = int(row.get("process_attempts") or 1)
+            if _is_quota_error(exc) and attempts < 3:
+                print(f"[{review_id}] quota error on draft, recycling to pending (attempt {attempts})")
+                self._set_status(review_id, "pending")
+            else:
+                self._save_action(review_id, risk_score, sentiment, reasoning, None, 0, None, [], {"steps": trace})
+                self._set_status(review_id, "needs_review")
             return
 
         draft_reply: str = draft_result.get("draft_reply", "")
