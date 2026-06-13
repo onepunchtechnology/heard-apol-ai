@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { cn, formatDistanceToNow } from '@/lib/utils'
+import { parseTrace } from '@/lib/agent-trace.mjs'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
@@ -68,83 +69,6 @@ function matchesFilter(review: Review, filter: FilterTab): boolean {
   if (filter === 'Escalated') return review.status === 'needs_review' || review.status === 'reply_pending_manual'
   if (filter === 'Blocked') return isBlocked(review)
   return true
-}
-
-// Parse seed-format agent_trace JSON into display lines
-function parseTrace(trace: unknown): Array<{ label: string; data: string; color: string }> {
-  if (!trace) return []
-  const raw = trace as { steps?: unknown[] }
-  const steps: Array<Record<string, unknown>> = Array.isArray(raw)
-    ? (raw as Array<Record<string, unknown>>)
-    : Array.isArray(raw.steps)
-    ? (raw.steps as Array<Record<string, unknown>>)
-    : []
-
-  return steps
-    .filter((s) => s.step !== 'claim' && !(s.step === 'fetch_order_context' && String(s.status ?? '') === 'skipped'))
-    .map((s) => {
-      const status = String(s.status ?? '')
-      let label = String(s.step ?? '').toUpperCase()
-      let data = status
-      let color = status === 'complete' ? 'var(--color-success)' : status === 'skipped' ? 'var(--color-muted)' : 'var(--color-escalate)'
-
-      switch (s.step) {
-        case 'classify': {
-          label = 'CLASSIFIER'
-          const r = s.result as Record<string, unknown> | undefined
-          if (r) {
-            const parts: string[] = []
-            if (r.sentiment_label) parts.push(`sentiment: ${r.sentiment_label}`)
-            if (r.needs_order_context !== undefined) parts.push(`needs_order_context: ${r.needs_order_context}`)
-            if (r.risk_score !== undefined) parts.push(`risk: ${r.risk_score}`)
-            if (r.confidence !== undefined) parts.push(`confidence: ${Number(r.confidence).toFixed(2)}`)
-            data = parts.join(' | ')
-          }
-          break
-        }
-        case 'brand_voice_rag': {
-          label = 'BRAND VOICE RAG'
-          const snippets = s.snippets as string[] | undefined
-          const count = (s.matched_count as number | undefined) ?? snippets?.length ?? 0
-          data = `${count} snippet${count !== 1 ? 's' : ''} matched`
-          color = 'var(--color-muted)'
-          break
-        }
-        case 'fetch_order_context':
-          label = 'SHOPIFY MCP'
-          data = s.found ? 'order context fetched' : 'no order found'
-          if (s.status === 'skipped') { data = 'skipped'; color = 'var(--color-muted)' }
-          break
-        case 'draft':
-          label = 'DRAFTER'
-          data = `draft generated${s.confidence ? ` | confidence: ${(Number(s.confidence) / 100).toFixed(2)}` : ''}`
-          break
-        case 'guardrails': {
-          label = 'GUARDRAILS'
-          const passed = s.passed as boolean | undefined
-          const flags = s.fired_flags as string[] | undefined
-          if (passed === true) {
-            data = 'pass | violations: 0'
-          } else if (passed === false) {
-            const rule = flags?.[0] ? ` | rule: "${flags[0]}"` : ''
-            data = `blocked | violations: ${flags?.length ?? 1}${rule}`
-            color = 'var(--color-escalate)'
-          }
-          break
-        }
-        case 'post':
-          label = 'POSTED'
-          if (status === 'complete') {
-            data = s.posted ? 'reply posted' : 'complete'
-          } else if (status === 'skipped') {
-            data = 'escalated — skipped'
-            color = 'var(--color-muted)'
-          }
-          break
-      }
-
-      return { label, data, color }
-    })
 }
 
 const REVIEW_SELECT = `
