@@ -25,7 +25,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
               Heard
             </span>
           </Link>
-          <AgentStatusPill size="compact" />
+          <AgentStatusPill size="compact" className="md:hidden" />
         </header>
 
         {/* Desktop sidebar — unchanged, hidden on mobile */}
