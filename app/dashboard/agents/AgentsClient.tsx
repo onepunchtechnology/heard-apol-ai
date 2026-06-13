@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { cn, formatDistanceToNow } from '@/lib/utils'
-import { parseTrace } from '@/lib/agent-trace.mjs'
+import { parseTrace, prioritizeTrace } from '@/lib/agent-trace.mjs'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
@@ -151,7 +151,7 @@ export default function AgentsClient({
   const filtered = reviews.filter((r) => matchesFilter(r, filter))
 
   return (
-    <div style={{ padding: '48px 32px', maxWidth: '1200px' }}>
+    <div className="max-w-[1200px] px-4 py-6 md:px-8 md:py-12">
       {/* Page title */}
       <h1
         style={{
@@ -185,7 +185,7 @@ export default function AgentsClient({
                 aria-pressed={selected}
                 onClick={() => setFilter(f)}
                 className={cn(
-                  'h-8 flex-shrink-0 rounded-sm px-3 text-xs transition-colors',
+                  'h-8 min-h-[44px] flex-shrink-0 rounded-sm px-3 text-xs transition-colors md:min-h-0',
                   selected
                     ? 'bg-accent text-text font-medium'
                     : 'bg-surface text-muted font-normal hover:bg-surface-2',
@@ -247,20 +247,20 @@ export default function AgentsClient({
               ? 'escalated'
               : review.status
 
-            const traceLines = parseTrace(action?.agent_trace)
+            const parsedTrace = parseTrace(action?.agent_trace)
+            const traceLines = isReviewBlocked ? prioritizeTrace(parsedTrace) : parsedTrace
 
             return (
               <div key={review.id}>
                 {/* Collapsed row */}
                 <button
                   onClick={() => setExpandedId(isExpanded ? null : review.id)}
-                  className={cn('w-full text-left', HEARD_FOCUS_CLASS)}
+                  className={cn(
+                    'w-full text-left flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3',
+                    'md:h-14 md:flex-nowrap md:gap-4 md:py-0',
+                    HEARD_FOCUS_CLASS,
+                  )}
                   style={{
-                    height: '56px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '16px',
-                    padding: '0 16px',
                     backgroundColor: isExpanded ? 'var(--color-surface)' : 'transparent',
                     border: 'none',
                     cursor: 'pointer',
@@ -283,8 +283,8 @@ export default function AgentsClient({
 
                   {/* Review excerpt */}
                   <span
-                    className="truncate"
-                    style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text)', maxWidth: '320px', minWidth: 0, flexShrink: 1 }}
+                    className="w-full truncate md:w-auto md:max-w-[320px] md:flex-shrink"
+                    style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text)', minWidth: 0 }}
                   >
                     {review.body}
                   </span>
@@ -365,26 +365,29 @@ export default function AgentsClient({
                         >
                           {traceLines.length > 0 ? (
                             traceLines.map((line, i) => (
-                              <div key={i} style={{ display: 'flex', gap: '12px', alignItems: 'baseline' }}>
+                              <div
+                                key={i}
+                                className="flex flex-col gap-0.5 md:flex-row md:items-baseline md:gap-3"
+                              >
                                 <span
+                                  className="md:w-[120px] md:flex-shrink-0 md:text-right"
                                   style={{
                                     fontFamily: '"Martian Mono", monospace',
                                     fontSize: '12px',
                                     color: line.color,
-                                    width: '120px',
-                                    flexShrink: 0,
-                                    textAlign: 'right',
                                   }}
                                 >
                                   {line.label}
                                 </span>
                                 <span
+                                  className="hidden md:inline"
                                   style={{ fontFamily: '"Martian Mono", monospace', fontSize: '12px', color: 'var(--color-muted)' }}
                                 >
                                   →
                                 </span>
                                 <span
-                                  style={{ fontFamily: '"Martian Mono", monospace', fontSize: '12px', color: 'var(--color-text)' }}
+                                  className="break-words"
+                                  style={{ fontFamily: '"Martian Mono", monospace', fontSize: '12px', color: 'var(--color-text)', minWidth: 0 }}
                                 >
                                   {line.data}
                                 </span>
