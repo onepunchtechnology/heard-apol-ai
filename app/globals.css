@@ -134,3 +134,9 @@ body {
     font-size: 16px !important;
   }
 }
+
+/* Hide the mobile bottom nav while a review detail is open so it never covers
+   the sticky Approve & Post bar. */
+body.review-detail-open nav[aria-label='Primary'] {
+  display: none;
+}
