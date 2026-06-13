@@ -191,29 +191,72 @@ export default function ActivityClient({
   }, [])
 
   return (
-    <div className="p-8 w-full max-w-5xl">
-      {/* Row 1: Hackathon panel */}
+    <div className="flex flex-col p-4 w-full max-w-5xl md:p-8">
+      {/* Row 1: Hackathon panel (demo only) — always first */}
       {isDemoAccount && <HackathonPanel />}
 
+      {/* Mobile receipt summary (hidden on desktop via its own md:hidden) */}
+      <ReceiptSummary
+        autoPosted={statusCounts.autoPosted}
+        needsAttention={statusCounts.needsAttention}
+        lastRunAt={lastRunAt}
+      />
+
+      {/* Desktop "last reply" line */}
       {lastRunAt && (
-        <p className="mb-5 text-xs text-muted">
+        <p className="mb-5 hidden text-xs text-muted md:block">
           last reply {formatDistanceToNow(lastRunAt)} ago
         </p>
       )}
 
-      {/* Row 2: Trend chart (full width) */}
-      <div className="mb-6">
+      {/* Escalation queue — first on mobile, last on desktop */}
+      <div className="order-1 mb-6 md:order-3 md:mb-0">
+        <EscalationQueue reviews={recentEscalated} totalCount={totalEscalatedCount} />
+      </div>
+
+      {/* Trend chart — second on mobile, first on desktop */}
+      <div className="order-2 mb-6 md:order-1">
         <ReviewsTrendChart reviewsTrend={reviewsTrend} repliesTrend={repliesTrend} />
       </div>
 
-      {/* Row 3: Pipeline + Sentiment */}
-      <div className="grid grid-cols-2 gap-6 mb-8">
+      {/* Pipeline + Sentiment — single column on mobile, 2-col on desktop */}
+      <div className="order-3 grid grid-cols-1 gap-6 md:order-2 md:grid-cols-2 md:mb-8">
         <StatusPipelineChart statusCounts={statusCounts} />
         <SentimentPieChart sentimentCounts={sentimentCounts} />
       </div>
+    </div>
+  )
+}
 
-      {/* Row 4: Escalation queue */}
-      <EscalationQueue reviews={recentEscalated} totalCount={totalEscalatedCount} />
+function ReceiptSummary({
+  autoPosted,
+  needsAttention,
+  lastRunAt,
+}: {
+  autoPosted: number
+  needsAttention: number
+  lastRunAt: string | null
+}) {
+  return (
+    <div
+      className="mb-6 flex flex-wrap items-center gap-x-2 gap-y-1 md:hidden"
+      style={{ fontSize: 'var(--text-sm)' }}
+    >
+      <span style={{ color: 'var(--color-success)', fontWeight: 500 }}>
+        {autoPosted} auto-replied
+      </span>
+      <span style={{ color: 'var(--color-muted)' }}>·</span>
+      <span style={{ color: 'var(--color-accent-dim)', fontWeight: 500 }}>
+        {needsAttention} need approval
+      </span>
+      {lastRunAt && (
+        <>
+          <span style={{ color: 'var(--color-muted)' }}>·</span>
+          <span style={{ color: 'var(--color-muted)' }}>
+            last reply {formatDistanceToNow(lastRunAt)} ago
+          </span>
+        </>
+      )}
     </div>
   )
 }
@@ -398,8 +441,8 @@ function SentimentPieChart({ sentimentCounts }: { sentimentCounts: SentimentCoun
             <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-muted)' }}>No data yet</p>
           </div>
         ) : (
-          <div className="flex items-center gap-6">
-            <ResponsiveContainer width="55%" height={180}>
+          <div className="flex flex-col items-center gap-4 md:flex-row md:gap-6">
+            <ResponsiveContainer width="100%" height={180} className="md:!w-[55%]">
               <PieChart>
                 <Pie
                   data={data}
