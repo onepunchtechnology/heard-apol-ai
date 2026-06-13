@@ -55,34 +55,47 @@ const NEGATIVE_TONES: Array<{ id: ToneNegative; label: string; description: stri
 ]
 
 function ProgressPills({ step }: { step: Step }) {
+  const current = step === 4 ? 4 : step
   return (
-    <div style={{ display: 'flex', gap: '6px', marginBottom: '32px' }}>
-      {STEP_LABELS.map((label, i) => {
-        const n = (i + 1) as Step
-        const done = n < step || step === 4
-        const active = n === step && step !== 4
-        return (
-          <div
-            key={n}
-            style={{
-              height: '38px',
-              padding: '0 14px',
-              display: 'flex',
-              alignItems: 'center',
-              borderRadius: 'var(--radius-md)',
-              fontFamily: 'Epilogue',
-              fontWeight: 500,
-              fontSize: '13px',
-              backgroundColor: done ? 'var(--color-success-bg)' : active ? 'var(--color-accent)' : 'var(--color-surface)',
-              color: done ? 'var(--color-success)' : active ? 'var(--color-text)' : 'var(--color-muted)',
-              transition: `background-color var(--duration-short) var(--ease-out), color var(--duration-short) var(--ease-out)`,
-            }}
-          >
-            {done ? `${label} ✓` : label}
-          </div>
-        )
-      })}
-    </div>
+    <>
+      {/* Mobile: compact step indicator */}
+      <div
+        className="mb-6 md:hidden"
+        style={{ fontFamily: 'Epilogue', fontWeight: 500, fontSize: '13px', color: 'var(--color-muted)' }}
+      >
+        Step {current} of 4
+        <span style={{ color: 'var(--color-text)' }}> · {STEP_LABELS[current - 1].replace(/^\d+\s/, '')}</span>
+      </div>
+
+      {/* Desktop: full pill row */}
+      <div className="hidden md:flex" style={{ gap: '6px', marginBottom: '32px' }}>
+        {STEP_LABELS.map((label, i) => {
+          const n = (i + 1) as Step
+          const done = n < step || step === 4
+          const active = n === step && step !== 4
+          return (
+            <div
+              key={n}
+              style={{
+                height: '38px',
+                padding: '0 14px',
+                display: 'flex',
+                alignItems: 'center',
+                borderRadius: 'var(--radius-md)',
+                fontFamily: 'Epilogue',
+                fontWeight: 500,
+                fontSize: '13px',
+                backgroundColor: done ? 'var(--color-success-bg)' : active ? 'var(--color-accent)' : 'var(--color-surface)',
+                color: done ? 'var(--color-success)' : active ? 'var(--color-text)' : 'var(--color-muted)',
+                transition: `background-color var(--duration-short) var(--ease-out), color var(--duration-short) var(--ease-out)`,
+              }}
+            >
+              {done ? `${label} ✓` : label}
+            </div>
+          )
+        })}
+      </div>
+    </>
   )
 }
 
@@ -325,7 +338,7 @@ function SetupContent() {
     1: (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         <StepBadge n={1} total={4} />
-        <p style={{ fontFamily: '"Instrument Serif"', fontStyle: 'italic', fontSize: '36px', color: 'var(--color-text)', lineHeight: 1.1, margin: '0 0 16px', maxWidth: '280px' }}>
+        <p style={{ fontFamily: '"Instrument Serif"', fontStyle: 'italic', fontSize: 'clamp(28px, 7vw, 36px)', color: 'var(--color-text)', lineHeight: 1.1, margin: '0 0 16px', maxWidth: '280px' }}>
           Connect your store.
         </p>
         <p style={{ fontFamily: 'Epilogue', fontSize: '15px', color: 'var(--color-muted)', maxWidth: '270px', lineHeight: 1.6, margin: '0 0 24px' }}>
@@ -347,7 +360,7 @@ function SetupContent() {
     2: (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         <StepBadge n={2} total={4} />
-        <p style={{ fontFamily: '"Instrument Serif"', fontStyle: 'italic', fontSize: '36px', color: 'var(--color-text)', lineHeight: 1.1, margin: '0 0 16px', maxWidth: '280px' }}>
+        <p style={{ fontFamily: '"Instrument Serif"', fontStyle: 'italic', fontSize: 'clamp(28px, 7vw, 36px)', color: 'var(--color-text)', lineHeight: 1.1, margin: '0 0 16px', maxWidth: '280px' }}>
           When customers love it.
         </p>
         <p style={{ fontFamily: 'Epilogue', fontSize: '15px', color: 'var(--color-muted)', maxWidth: '270px', lineHeight: 1.6, margin: '0 0 24px' }}>
@@ -374,7 +387,7 @@ function SetupContent() {
     3: (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
         <StepBadge n={3} total={4} />
-        <p style={{ fontFamily: '"Instrument Serif"', fontStyle: 'italic', fontSize: '36px', color: 'var(--color-text)', lineHeight: 1.1, margin: '0 0 16px', maxWidth: '280px' }}>
+        <p style={{ fontFamily: '"Instrument Serif"', fontStyle: 'italic', fontSize: 'clamp(28px, 7vw, 36px)', color: 'var(--color-text)', lineHeight: 1.1, margin: '0 0 16px', maxWidth: '280px' }}>
           When something goes wrong.
         </p>
         <p style={{ fontFamily: 'Epilogue', fontSize: '15px', color: 'var(--color-muted)', maxWidth: '270px', lineHeight: 1.6, margin: '0 0 24px' }}>
@@ -390,7 +403,7 @@ function SetupContent() {
 
     4: (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-        <p style={{ fontFamily: '"Instrument Serif"', fontStyle: 'italic', fontSize: '40px', color: 'var(--color-text)', lineHeight: 1.1, margin: '0 0 16px', maxWidth: '280px' }}>
+        <p style={{ fontFamily: '"Instrument Serif"', fontStyle: 'italic', fontSize: 'clamp(30px, 8vw, 40px)', color: 'var(--color-text)', lineHeight: 1.1, margin: '0 0 16px', maxWidth: '280px' }}>
           Heard is listening.
         </p>
         <p style={{ fontFamily: 'Epilogue', fontSize: '16px', color: 'var(--color-muted)', maxWidth: '270px', lineHeight: 1.6, margin: '0 0 32px' }}>
@@ -451,7 +464,7 @@ function SetupContent() {
                   onChange={(e) => setShopDomainInput(e.target.value)}
                   placeholder="yourstore.myshopify.com"
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleConnectShopify() } }}
-                  style={{ flex: 1, height: '48px', padding: '0 16px', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', fontFamily: 'Epilogue', fontSize: '15px', color: 'var(--color-text)' }}
+                  style={{ flex: 1, minWidth: 0, height: '48px', padding: '0 16px', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', fontFamily: 'Epilogue', fontSize: '15px', color: 'var(--color-text)' }}
                 />
                 <button
                   type="button"
@@ -594,7 +607,7 @@ function SetupContent() {
         )}
         <button
           onClick={() => router.push('/dashboard')}
-          style={{ width: '400px', height: '52px', backgroundColor: 'var(--color-accent)', border: 'none', borderRadius: 'var(--radius-md)', fontFamily: 'Epilogue', fontWeight: 500, fontSize: '15px', color: 'var(--color-text)', cursor: 'pointer', marginBottom: '16px' }}
+          style={{ width: '400px', maxWidth: '100%', height: '52px', backgroundColor: 'var(--color-accent)', border: 'none', borderRadius: 'var(--radius-md)', fontFamily: 'Epilogue', fontWeight: 500, fontSize: '15px', color: 'var(--color-text)', cursor: 'pointer', marginBottom: '16px' }}
         >
           Go to Dashboard →
         </button>
