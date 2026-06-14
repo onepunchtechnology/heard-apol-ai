@@ -736,6 +736,7 @@ function ManualPasteButton({
   onPosted: () => void
 }) {
   const [step, setStep] = useState<'idle' | 'copied'>('idle')
+  const [posting, setPosting] = useState(false)
 
   async function handleCopy() {
     await navigator.clipboard.writeText(draft)
@@ -743,12 +744,26 @@ function ManualPasteButton({
   }
 
   async function handleMarkPosted() {
-    await fetch(`/api/reviews/${reviewId}/mark-posted`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reply: draft }),
-    })
-    onPosted()
+    setPosting(true)
+    try {
+      const res = await fetch(`/api/reviews/${reviewId}/mark-posted`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reply: draft }),
+      })
+      if (res.ok) {
+        // Only advance the posted flow (and clear dirty via the wrapped
+        // onPosted) when the server actually recorded the mark-posted mutation.
+        onPosted()
+      } else {
+        const body = await res.json().catch(() => ({}))
+        toast(body.error ?? 'Failed to mark as posted. Please try again.')
+      }
+    } catch {
+      toast('Failed to mark as posted. Check your connection and try again.')
+    } finally {
+      setPosting(false)
+    }
   }
 
   return (
@@ -767,9 +782,10 @@ function ManualPasteButton({
           <Button
             variant="ghost"
             onClick={handleMarkPosted}
+            disabled={posting}
             className={cn('text-muted hover:text-muted hover:bg-transparent text-xs shadow-none px-1 h-auto', HEARD_FOCUS_CLASS)}
           >
-            Mark as posted
+            {posting ? 'Marking…' : 'Mark as posted'}
           </Button>
         </div>
       )}
