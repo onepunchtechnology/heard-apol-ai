@@ -212,6 +212,12 @@ export default function ReviewsClient({ reviews: initialReviews, replyMode }: { 
   const allCaughtUp = reviews.length > 0 && escalatedCount === 0 && inFlightCount === 0
 
   function handlePosted(id: string) {
+    // The draft was just posted, so any in-progress edits are no longer
+    // "unsaved" — clear the dirty flag at this terminal boundary (covers both
+    // the Judge.me approve and manual-paste mark-posted paths) so a later
+    // selection doesn't prompt to discard an already-posted draft. Synchronous
+    // (not inside the timeout) to also cover taps during the posted window.
+    isDirtyRef.current = false
     setPostedIds((prev) => new Set(Array.from(prev).concat(id)))
     const nextEscalated = effectiveReviews.find(
       (r) => (r.status === 'needs_review' || r.status === 'reply_pending_manual') && r.id !== id,
