@@ -86,18 +86,55 @@ export default function ReviewsClient({ reviews: initialReviews, replyMode }: { 
   const [selectedId, setSelectedId] = useState<string | null>(
     initialReviews.find((r) => r.status === 'needs_review')?.id ?? null,
   )
+  // Mobile master/detail view. A review is auto-selected above for desktop's
+  // side-by-side layout, but mobile must start on the list — so the <md branch
+  // reads this state, not `selected`. Desktop ignores it (both panels show via
+  // md: classes).
+  const [mobileView, setMobileView] = useState<'list' | 'detail'>('list')
   const [postedIds, setPostedIds] = useState<Set<string>>(new Set())
   const [locallyApprovedIds, setLocallyApprovedIds] = useState<Set<string>>(new Set())
   const isDirtyRef = useRef(false)
 
   function trySelectReview(id: string) {
-    if (id === selectedId) return
+    if (id === selectedId) {
+      // Re-tapping the already-selected (e.g. auto-selected) review on mobile
+      // still opens its detail.
+      if (id) setMobileView('detail')
+      return
+    }
     if (isDirtyRef.current) {
       const discard = window.confirm('You have unsaved changes to the draft reply. Discard them?')
       if (!discard) return
+      isDirtyRef.current = false
     }
     setSelectedId(id)
+    if (id) setMobileView('detail')
   }
+
+  // Mobile back-to-list. Confirms discard of unsaved edits, resets the dirty
+  // flag so a later selection doesn't re-prompt, and clears the selection so
+  // the detail unmounts (true discard of the edited draft).
+  function handleBack() {
+    if (isDirtyRef.current) {
+      const discard = window.confirm('You have unsaved changes to the draft reply. Discard them?')
+      if (!discard) return
+      isDirtyRef.current = false
+    }
+    setSelectedId(null)
+    setMobileView('list')
+  }
+
+  // Hide the mobile bottom nav only while the mobile detail view is showing, so
+  // it never overlaps the sticky Approve & Post bar. Tied to mobileView (not the
+  // ReviewDetail mount) so a list view with an auto-selected review keeps the nav.
+  useEffect(() => {
+    if (mobileView === 'detail') {
+      document.body.classList.add('review-detail-open')
+    } else {
+      document.body.classList.remove('review-detail-open')
+    }
+    return () => document.body.classList.remove('review-detail-open')
+  }, [mobileView])
 
   useEffect(() => {
     const supabase = createClient()
@@ -188,6 +225,9 @@ export default function ReviewsClient({ reviews: initialReviews, replyMode }: { 
       })
       setLocallyApprovedIds((prev) => new Set(Array.from(prev).concat(id)))
       setSelectedId(nextId)
+      // Mobile: return to the list once the queue is empty rather than showing
+      // the all-caught-up hero inside the detail pane.
+      if (!nextId) setMobileView('list')
     }, 3000)
   }
 
@@ -216,7 +256,7 @@ export default function ReviewsClient({ reviews: initialReviews, replyMode }: { 
       <div
         className={cn(
           'w-full flex-col overflow-hidden border-b border-border md:flex md:h-full md:w-[420px] md:flex-shrink-0 md:border-b-0 md:border-r',
-          selected ? 'hidden md:flex' : 'flex',
+          mobileView === 'detail' ? 'hidden md:flex' : 'flex',
         )}
       >
         {/* Header */}
@@ -369,7 +409,7 @@ export default function ReviewsClient({ reviews: initialReviews, replyMode }: { 
       <div
         className={cn(
           'min-h-[420px] flex-1 overflow-y-auto p-5 pb-28 md:block md:p-6 md:pb-6',
-          selected ? 'block' : 'hidden md:block',
+          mobileView === 'detail' ? 'block' : 'hidden md:block',
         )}
       >
         {allCaughtUp && !selected ? (
@@ -396,7 +436,7 @@ export default function ReviewsClient({ reviews: initialReviews, replyMode }: { 
             review={selected}
             onPosted={() => handlePosted(selected.id)}
             onDirtyChange={(dirty) => { isDirtyRef.current = dirty }}
-            onBack={() => trySelectReview('')}
+            onBack={handleBack}
           />
         ) : (
           <div className="flex items-center justify-center h-full">
@@ -436,14 +476,6 @@ function ReviewDetail({
   useEffect(() => {
     onDirtyChange?.(hasUnsavedChanges)
   }, [hasUnsavedChanges, onDirtyChange])
-
-  // While a review detail is open, hide the mobile bottom nav so it never
-  // overlaps the sticky Approve & Post bar. (Desktop has no bottom nav, so the
-  // body class is a no-op there.)
-  useEffect(() => {
-    document.body.classList.add('review-detail-open')
-    return () => document.body.classList.remove('review-detail-open')
-  }, [])
 
   const isManualPaste = review.status === 'reply_pending_manual'
   const isGoogleManual = review.source === 'google_business' && isManualPaste
