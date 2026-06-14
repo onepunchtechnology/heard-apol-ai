@@ -487,6 +487,15 @@ function ReviewDetail({
   const isGoogleManual = review.source === 'google_business' && isManualPaste
   const wordCount = draft.trim() ? draft.trim().split(/\s+/).length : 0
 
+  // On a successful terminal post, the current draft IS the posted reply, so it
+  // is no longer "unsaved". Advance originalDraft so hasUnsavedChanges computes
+  // false on every subsequent render (the parent re-renders during posting and
+  // would otherwise re-assert dirty via the effect), and clear immediately.
+  function markDraftPosted() {
+    originalDraft.current = draft
+    onDirtyChange?.(false)
+  }
+
   async function handleApprove() {
     setLoading(true)
     setApproveError(null)
@@ -496,6 +505,7 @@ function ReviewDetail({
       body: JSON.stringify({ reply: draft }),
     })
     if (res.ok) {
+      markDraftPosted()
       setPosted(true)
       toast('Reply posted to Judge.me')
       onPosted()
@@ -680,7 +690,11 @@ function ReviewDetail({
              manual-post branch is wrapped so it gets the same order/width. */}
           {isGoogleManual ? (
             <div className="order-2 w-full md:order-none md:w-auto">
-              <ManualPasteButton reviewId={review.id} draft={draft} onPosted={onPosted} />
+              <ManualPasteButton
+                reviewId={review.id}
+                draft={draft}
+                onPosted={() => { markDraftPosted(); onPosted() }}
+              />
             </div>
           ) : (
             <Button
