@@ -69,17 +69,17 @@ export default function LoginPage() {
       </div>
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-        <p style={{ fontFamily: 'Epilogue', fontWeight: 500, fontSize: '24px', color: 'var(--color-text)', maxWidth: '260px', lineHeight: 1.4, margin: 0 }}>
+        <p style={{ fontFamily: 'Epilogue', fontWeight: 500, fontSize: 'clamp(20px, 5vw, 24px)', color: 'var(--color-text)', maxWidth: '260px', lineHeight: 1.4, margin: 0 }}>
           Your reviews, answered while you sleep.
         </p>
         <div style={{ display: 'flex', gap: '8px', marginTop: '24px', flexWrap: 'wrap' }}>
           <span style={{ backgroundColor: 'var(--color-success-bg)', color: 'var(--color-success)', padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontFamily: 'Epilogue', fontSize: '13px' }}>
             15 auto-replied
           </span>
-          <span style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-accent-dim)', padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontFamily: 'Epilogue', fontSize: '13px' }}>
+          <span className="hidden md:inline-block" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-accent-dim)', padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontFamily: 'Epilogue', fontSize: '13px' }}>
             3 drafts ready
           </span>
-          <span style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-muted)', padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontFamily: 'Epilogue', fontSize: '13px' }}>
+          <span className="hidden md:inline-block" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-muted)', padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontFamily: 'Epilogue', fontSize: '13px' }}>
             18 total
           </span>
         </div>
@@ -107,6 +107,7 @@ export default function LoginPage() {
             justifyContent: 'center',
             gap: '10px',
             width: '320px',
+            maxWidth: '100%',
             height: '48px',
             backgroundColor: 'var(--color-bg)',
             border: '1px solid var(--color-border)',
@@ -145,7 +146,7 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              style={{ width: '320px', height: '48px', padding: '0 16px', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', fontFamily: 'Epilogue', fontSize: '15px', color: 'var(--color-text)' }}
+              style={{ width: '320px', maxWidth: '100%', height: '48px', padding: '0 16px', backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', fontFamily: 'Epilogue', fontSize: '15px', color: 'var(--color-text)' }}
             />
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <button

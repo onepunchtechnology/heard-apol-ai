@@ -86,18 +86,55 @@ export default function ReviewsClient({ reviews: initialReviews, replyMode }: { 
   const [selectedId, setSelectedId] = useState<string | null>(
     initialReviews.find((r) => r.status === 'needs_review')?.id ?? null,
   )
+  // Mobile master/detail view. A review is auto-selected above for desktop's
+  // side-by-side layout, but mobile must start on the list — so the <md branch
+  // reads this state, not `selected`. Desktop ignores it (both panels show via
+  // md: classes).
+  const [mobileView, setMobileView] = useState<'list' | 'detail'>('list')
   const [postedIds, setPostedIds] = useState<Set<string>>(new Set())
   const [locallyApprovedIds, setLocallyApprovedIds] = useState<Set<string>>(new Set())
   const isDirtyRef = useRef(false)
 
   function trySelectReview(id: string) {
-    if (id === selectedId) return
+    if (id === selectedId) {
+      // Re-tapping the already-selected (e.g. auto-selected) review on mobile
+      // still opens its detail.
+      if (id) setMobileView('detail')
+      return
+    }
     if (isDirtyRef.current) {
       const discard = window.confirm('You have unsaved changes to the draft reply. Discard them?')
       if (!discard) return
+      isDirtyRef.current = false
     }
     setSelectedId(id)
+    if (id) setMobileView('detail')
   }
+
+  // Mobile back-to-list. Confirms discard of unsaved edits, resets the dirty
+  // flag so a later selection doesn't re-prompt, and clears the selection so
+  // the detail unmounts (true discard of the edited draft).
+  function handleBack() {
+    if (isDirtyRef.current) {
+      const discard = window.confirm('You have unsaved changes to the draft reply. Discard them?')
+      if (!discard) return
+      isDirtyRef.current = false
+    }
+    setSelectedId(null)
+    setMobileView('list')
+  }
+
+  // Hide the mobile bottom nav only while the mobile detail view is showing, so
+  // it never overlaps the sticky Approve & Post bar. Tied to mobileView (not the
+  // ReviewDetail mount) so a list view with an auto-selected review keeps the nav.
+  useEffect(() => {
+    if (mobileView === 'detail') {
+      document.body.classList.add('review-detail-open')
+    } else {
+      document.body.classList.remove('review-detail-open')
+    }
+    return () => document.body.classList.remove('review-detail-open')
+  }, [mobileView])
 
   useEffect(() => {
     const supabase = createClient()
@@ -175,6 +212,12 @@ export default function ReviewsClient({ reviews: initialReviews, replyMode }: { 
   const allCaughtUp = reviews.length > 0 && escalatedCount === 0 && inFlightCount === 0
 
   function handlePosted(id: string) {
+    // The draft was just posted, so any in-progress edits are no longer
+    // "unsaved" — clear the dirty flag at this terminal boundary (covers both
+    // the Judge.me approve and manual-paste mark-posted paths) so a later
+    // selection doesn't prompt to discard an already-posted draft. Synchronous
+    // (not inside the timeout) to also cover taps during the posted window.
+    isDirtyRef.current = false
     setPostedIds((prev) => new Set(Array.from(prev).concat(id)))
     const nextEscalated = effectiveReviews.find(
       (r) => (r.status === 'needs_review' || r.status === 'reply_pending_manual') && r.id !== id,
@@ -188,6 +231,9 @@ export default function ReviewsClient({ reviews: initialReviews, replyMode }: { 
       })
       setLocallyApprovedIds((prev) => new Set(Array.from(prev).concat(id)))
       setSelectedId(nextId)
+      // Mobile: return to the list once the queue is empty rather than showing
+      // the all-caught-up hero inside the detail pane.
+      if (!nextId) setMobileView('list')
     }, 3000)
   }
 
@@ -214,7 +260,10 @@ export default function ReviewsClient({ reviews: initialReviews, replyMode }: { 
     <div className="flex min-h-full flex-col md:h-full md:flex-row">
       {/* Left panel — review list */}
       <div
-        className="flex max-h-[55vh] w-full flex-col overflow-hidden border-b border-border md:h-full md:max-h-none md:w-[420px] md:flex-shrink-0 md:border-b-0 md:border-r"
+        className={cn(
+          'w-full flex-col overflow-hidden border-b border-border md:flex md:h-full md:w-[420px] md:flex-shrink-0 md:border-b-0 md:border-r',
+          mobileView === 'detail' ? 'hidden md:flex' : 'flex',
+        )}
       >
         {/* Header */}
         <div
@@ -247,7 +296,7 @@ export default function ReviewsClient({ reviews: initialReviews, replyMode }: { 
                     aria-pressed={selected}
                     onClick={() => setFilter(f)}
                     className={cn(
-                      'h-7 flex-shrink-0 rounded-sm px-3 text-xs transition-colors',
+                      'h-7 min-h-[44px] flex-shrink-0 rounded-sm px-3 text-xs transition-colors md:min-h-0',
                       selected
                         ? 'bg-surface-2 text-text font-medium'
                         : 'bg-transparent text-muted font-normal hover:bg-surface',
@@ -363,7 +412,12 @@ export default function ReviewsClient({ reviews: initialReviews, replyMode }: { 
       </div>
 
       {/* Right panel */}
-      <div className="min-h-[420px] flex-1 overflow-y-auto p-5 md:p-6">
+      <div
+        className={cn(
+          'min-h-[420px] flex-1 overflow-y-auto p-5 pb-28 md:block md:p-6 md:pb-6',
+          mobileView === 'detail' ? 'block' : 'hidden md:block',
+        )}
+      >
         {allCaughtUp && !selected ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
@@ -388,6 +442,7 @@ export default function ReviewsClient({ reviews: initialReviews, replyMode }: { 
             review={selected}
             onPosted={() => handlePosted(selected.id)}
             onDirtyChange={(dirty) => { isDirtyRef.current = dirty }}
+            onBack={handleBack}
           />
         ) : (
           <div className="flex items-center justify-center h-full">
@@ -405,10 +460,12 @@ function ReviewDetail({
   review,
   onPosted,
   onDirtyChange,
+  onBack,
 }: {
   review: Review
   onPosted: () => void
   onDirtyChange?: (dirty: boolean) => void
+  onBack?: () => void
 }) {
   const action = getAction(review)
   const originalDraft = useRef(action?.draft_reply ?? '')
@@ -430,6 +487,15 @@ function ReviewDetail({
   const isGoogleManual = review.source === 'google_business' && isManualPaste
   const wordCount = draft.trim() ? draft.trim().split(/\s+/).length : 0
 
+  // On a successful terminal post, the current draft IS the posted reply, so it
+  // is no longer "unsaved". Advance originalDraft so hasUnsavedChanges computes
+  // false on every subsequent render (the parent re-renders during posting and
+  // would otherwise re-assert dirty via the effect), and clear immediately.
+  function markDraftPosted() {
+    originalDraft.current = draft
+    onDirtyChange?.(false)
+  }
+
   async function handleApprove() {
     setLoading(true)
     setApproveError(null)
@@ -439,6 +505,7 @@ function ReviewDetail({
       body: JSON.stringify({ reply: draft }),
     })
     if (res.ok) {
+      markDraftPosted()
       setPosted(true)
       toast('Reply posted to Judge.me')
       onPosted()
@@ -468,6 +535,15 @@ function ReviewDetail({
 
   return (
     <div className="max-w-2xl">
+      {/* Mobile back to list */}
+      <button
+        type="button"
+        onClick={onBack}
+        className={cn('mb-3 flex items-center gap-1 md:hidden', HEARD_FOCUS_CLASS)}
+        style={{ background: 'none', border: 'none', padding: 0, color: 'var(--color-muted)', fontSize: 'var(--text-sm)', cursor: 'pointer' }}
+      >
+        ← All reviews
+      </button>
       {/* Header */}
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
@@ -584,27 +660,47 @@ function ReviewDetail({
         </div>
       )}
 
-      {/* Action buttons */}
+      {/* Action buttons — sticky bottom bar on mobile, inline on desktop */}
       {!posted && action && (
-        <div className="flex items-center gap-3">
+        <div
+          className={cn(
+            'flex flex-col gap-2',
+            // mobile: fixed to the viewport bottom (the BottomNav is hidden while
+            // a detail is open, so there is nothing to overlap); desktop: inline row
+            'fixed inset-x-0 bottom-0 z-30 border-t border-border bg-bg p-4',
+            'md:static md:z-auto md:flex-row md:items-center md:gap-3 md:border-0 md:bg-transparent md:p-0',
+          )}
+          style={{ paddingBottom: 'calc(16px + env(safe-area-inset-bottom))' }}
+        >
+          {/* Secondary action — sits ABOVE the primary on mobile (order-1, top),
+             keeps source order on desktop (md:order-none → inline, left of Approve) */}
           {hasUnsavedChanges && (
             <Button
               variant="outline"
               onClick={handleSave}
               disabled={saving}
-              className={cn('border-border text-text hover:bg-surface hover:text-text text-sm shadow-none', HEARD_FOCUS_CLASS)}
+              className={cn('order-1 border-border text-text hover:bg-surface hover:text-text text-sm shadow-none md:order-none', HEARD_FOCUS_CLASS)}
             >
               {saving ? 'Saving...' : 'Save'}
             </Button>
           )}
 
+          {/* Primary action — dominant, full-width, and bottom-most on mobile
+             (order-2 → closest to the thumb at the viewport bottom). The Google
+             manual-post branch is wrapped so it gets the same order/width. */}
           {isGoogleManual ? (
-            <ManualPasteButton reviewId={review.id} draft={draft} onPosted={onPosted} />
+            <div className="order-2 w-full md:order-none md:w-auto">
+              <ManualPasteButton
+                reviewId={review.id}
+                draft={draft}
+                onPosted={() => { markDraftPosted(); onPosted() }}
+              />
+            </div>
           ) : (
             <Button
               onClick={handleApprove}
               disabled={loading}
-              className={cn('bg-accent text-text hover:bg-accent/90 text-sm font-medium shadow-none', HEARD_FOCUS_CLASS)}
+              className={cn('order-2 w-full bg-accent text-text hover:bg-accent/90 text-sm font-medium shadow-none md:order-none md:w-auto', HEARD_FOCUS_CLASS)}
             >
               {loading ? 'Posting...' : 'Approve & Post'}
             </Button>
@@ -640,6 +736,7 @@ function ManualPasteButton({
   onPosted: () => void
 }) {
   const [step, setStep] = useState<'idle' | 'copied'>('idle')
+  const [posting, setPosting] = useState(false)
 
   async function handleCopy() {
     await navigator.clipboard.writeText(draft)
@@ -647,19 +744,33 @@ function ManualPasteButton({
   }
 
   async function handleMarkPosted() {
-    await fetch(`/api/reviews/${reviewId}/mark-posted`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ reply: draft }),
-    })
-    onPosted()
+    setPosting(true)
+    try {
+      const res = await fetch(`/api/reviews/${reviewId}/mark-posted`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reply: draft }),
+      })
+      if (res.ok) {
+        // Only advance the posted flow (and clear dirty via the wrapped
+        // onPosted) when the server actually recorded the mark-posted mutation.
+        onPosted()
+      } else {
+        const body = await res.json().catch(() => ({}))
+        toast(body.error ?? 'Failed to mark as posted. Please try again.')
+      }
+    } catch {
+      toast('Failed to mark as posted. Check your connection and try again.')
+    } finally {
+      setPosting(false)
+    }
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-col gap-2 md:flex-row md:items-center">
       <Button
         onClick={handleCopy}
-        className={cn('bg-accent text-text hover:bg-accent/90 text-sm font-medium shadow-none', HEARD_FOCUS_CLASS)}
+        className={cn('w-full bg-accent text-text hover:bg-accent/90 text-sm font-medium shadow-none md:w-auto', HEARD_FOCUS_CLASS)}
       >
         Copy &amp; Post to Google
       </Button>
@@ -671,9 +782,10 @@ function ManualPasteButton({
           <Button
             variant="ghost"
             onClick={handleMarkPosted}
+            disabled={posting}
             className={cn('text-muted hover:text-muted hover:bg-transparent text-xs shadow-none px-1 h-auto', HEARD_FOCUS_CLASS)}
           >
-            Mark as posted
+            {posting ? 'Marking…' : 'Mark as posted'}
           </Button>
         </div>
       )}

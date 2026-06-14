@@ -184,7 +184,7 @@ export default function SettingsClient({
   }
 
   return (
-    <div style={{ padding: '48px 32px', maxWidth: '1200px' }}>
+    <div className="max-w-[1200px] px-4 py-6 md:px-8 md:py-12">
       <h1
         style={{
           fontSize: 'var(--text-xl)',
@@ -221,9 +221,10 @@ export default function SettingsClient({
         </p>
         <Separator className="mb-6" />
 
-        <div className="flex gap-2" style={{ marginBottom: '12px' }}>
+        <div className="flex flex-wrap gap-2" style={{ marginBottom: '12px' }}>
           <button
             type="button"
+            className="min-h-[44px] md:min-h-0"
             onClick={() => handleReplyModeChange('manual_approval')}
             style={{
               height: '40px',
@@ -242,6 +243,7 @@ export default function SettingsClient({
           </button>
           <button
             type="button"
+            className="min-h-[44px] md:min-h-0"
             onClick={() => handleReplyModeChange('auto_post')}
             style={{
               height: '40px',
@@ -329,7 +331,7 @@ export default function SettingsClient({
                   Failed to update token. Please try again.
                 </p>
               )}
-              <div className="flex gap-3 items-center" style={{ marginTop: '12px' }}>
+              <div className="flex flex-wrap gap-3 items-center" style={{ marginTop: '12px' }}>
                 <Button
                   type="button"
                   onClick={handleUpdateToken}
@@ -400,7 +402,7 @@ export default function SettingsClient({
               <label style={{ fontSize: 'var(--text-sm)', fontWeight: 500, color: 'var(--color-text)', display: 'block', marginBottom: '8px' }}>
                 Connection Mode
               </label>
-              <div className="flex gap-2" style={{ marginBottom: '12px' }}>
+              <div className="flex flex-wrap gap-2" style={{ marginBottom: '12px' }}>
                 <button
                   style={{
                     height: '32px',
@@ -517,11 +519,12 @@ export default function SettingsClient({
 
         {/* Tone for positive reviews */}
         <FieldGroup label="Tone — positive reviews">
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {POSITIVE_TONES.map((t) => (
               <button
                 key={t.id}
                 type="button"
+                className="min-h-[44px] md:min-h-0"
                 onClick={() => setTonePositive(t.id)}
                 style={{
                   height: '32px',
@@ -544,11 +547,12 @@ export default function SettingsClient({
 
         {/* Tone for negative reviews */}
         <FieldGroup label="Tone — complaints &amp; negative reviews">
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {NEGATIVE_TONES.map((t) => (
               <button
                 key={t.id}
                 type="button"
+                className="min-h-[44px] md:min-h-0"
                 onClick={() => setToneNegative(t.id)}
                 style={{
                   height: '32px',
