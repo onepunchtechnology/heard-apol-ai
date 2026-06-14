@@ -68,11 +68,11 @@ export default function LoginPage() {
         </div>
       </div>
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+      <div className="mt-5 md:mt-0" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
         <p style={{ fontFamily: 'Epilogue', fontWeight: 500, fontSize: 'clamp(20px, 5vw, 24px)', color: 'var(--color-text)', maxWidth: '260px', lineHeight: 1.4, margin: 0 }}>
           Your reviews, answered while you sleep.
         </p>
-        <div style={{ display: 'flex', gap: '8px', marginTop: '24px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '8px', marginTop: '20px', flexWrap: 'wrap' }}>
           <span style={{ backgroundColor: 'var(--color-success-bg)', color: 'var(--color-success)', padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontFamily: 'Epilogue', fontSize: '13px' }}>
             15 auto-replied
           </span>
@@ -91,7 +91,7 @@ export default function LoginPage() {
   const right = (
     <div style={{ width: '100%', maxWidth: '400px', display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'space-between' }}>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-        <h1 style={{ fontFamily: 'Epilogue', fontWeight: 500, fontSize: '28px', color: 'var(--color-text)', margin: '0 0 8px', lineHeight: 1.2 }}>
+        <h1 className="sr-only md:not-sr-only" style={{ fontFamily: 'Epilogue', fontWeight: 500, fontSize: '28px', color: 'var(--color-text)', margin: '0 0 8px', lineHeight: 1.2 }}>
           Welcome to Heard
         </h1>
         <p style={{ fontFamily: 'Epilogue', fontSize: '15px', color: 'var(--color-muted)', margin: '0 0 32px', lineHeight: 1.6 }}>

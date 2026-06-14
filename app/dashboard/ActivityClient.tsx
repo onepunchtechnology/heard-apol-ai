@@ -356,13 +356,14 @@ function ReviewsTrendChart({ reviewsTrend, repliesTrend }: { reviewsTrend: numbe
           Last 7 days
         </p>
         <ResponsiveContainer width="100%" height={180}>
-          <LineChart data={chartData} margin={{ top: 4, right: 8, left: -8, bottom: 32 }}>
+          <LineChart data={chartData} margin={{ top: 4, right: 16, left: -8, bottom: 32 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#FFC2DE" vertical={false} />
             <XAxis
               dataKey="tick"
               tickLine={false}
               axisLine={false}
               interval={0}
+              padding={{ left: 12, right: 12 }}
               tick={<TrendAxisTick />}
             />
             <YAxis
@@ -559,7 +560,7 @@ function EscalationQueue({ reviews: initialReviews, totalCount }: { reviews: Esc
 
       <CardContent className="p-0">
         {reviews.length === 0 ? (
-          <div className="px-6 py-16 text-center">
+          <div className="px-6 py-10 text-center">
             <p
               className="font-display italic"
               style={{ fontSize: 'var(--text-xl)', color: 'var(--color-muted)' }}

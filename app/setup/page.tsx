@@ -446,7 +446,7 @@ function SetupContent() {
           </div>
         )}
         <form onSubmit={handleStep1} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <h1 style={{ fontFamily: 'Epilogue', fontWeight: 500, fontSize: '20px', color: 'var(--color-text)', margin: 0 }}>
+          <h1 className="sr-only md:not-sr-only" style={{ fontFamily: 'Epilogue', fontWeight: 500, fontSize: '20px', color: 'var(--color-text)', margin: 0 }}>
             Connect your store
           </h1>
 
@@ -518,10 +518,10 @@ function SetupContent() {
       <div style={{ width: '100%', maxWidth: '420px' }}>
         <ProgressPills step={step} />
         <form onSubmit={handleStep2} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <h1 style={{ fontFamily: 'Epilogue', fontWeight: 500, fontSize: '20px', color: 'var(--color-text)', margin: 0 }}>
+          <h1 className="sr-only md:not-sr-only" style={{ fontFamily: 'Epilogue', fontWeight: 500, fontSize: '20px', color: 'var(--color-text)', margin: 0 }}>
             Tone for positive reviews
           </h1>
-          <p style={{ fontFamily: 'Epilogue', fontSize: '14px', color: 'var(--color-muted)', margin: 0, lineHeight: 1.6 }}>
+          <p className="hidden md:block" style={{ fontFamily: 'Epilogue', fontSize: '14px', color: 'var(--color-muted)', margin: 0, lineHeight: 1.6 }}>
             How should Heard sound when replying to happy customers?
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -548,10 +548,10 @@ function SetupContent() {
               {error}
             </div>
           )}
-          <h1 style={{ fontFamily: 'Epilogue', fontWeight: 500, fontSize: '20px', color: 'var(--color-text)', margin: 0 }}>
+          <h1 className="sr-only md:not-sr-only" style={{ fontFamily: 'Epilogue', fontWeight: 500, fontSize: '20px', color: 'var(--color-text)', margin: 0 }}>
             Tone for complaints
           </h1>
-          <p style={{ fontFamily: 'Epilogue', fontSize: '14px', color: 'var(--color-muted)', margin: 0, lineHeight: 1.6 }}>
+          <p className="hidden md:block" style={{ fontFamily: 'Epilogue', fontSize: '14px', color: 'var(--color-muted)', margin: 0, lineHeight: 1.6 }}>
             How should Heard sound when something went wrong for a customer?
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
